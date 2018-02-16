@@ -202,7 +202,6 @@
     <Compile Include="Controllers\HomeController.cs" />
     <Compile Include="Controllers\ValuesController.cs" />
     <Compile Include="DAL\AssistDbContext.cs" />
-    <Compile Include="DAL\AssistDbInitializer.cs" />
     <Compile Include="GlimpseSecurityPolicy.cs" />
     <Compile Include="Migrations\Configuration.cs" />
     <Compile Include="Models\College.cs" />
