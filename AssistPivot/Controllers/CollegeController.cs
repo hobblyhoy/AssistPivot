@@ -7,6 +7,7 @@ using System.Web.Http;
 using Newtonsoft.Json;
 using System.Web.Http.Results;
 using System.Web.Mvc;
+using AssistPivot.DAL;
 
 namespace AssistPivot.Controllers
 {
@@ -14,6 +15,11 @@ namespace AssistPivot.Controllers
     {
         public JsonResult Get()
         {
+            var db = new AssistDbContext();
+            var a = db.Colleges.Where(c => 1 == 1).ToList();
+            var b = db.Colleges.ToList();
+
+
             var ret = new List<CollegeDto>();
             ret.Add(new CollegeDto() { CollegeId = 0, Name = "Allan Hancock College", Shorthand = "AHC" });
             ret.Add(new CollegeDto() { CollegeId = 1, Name = "American River College", Shorthand = "ARC" });
