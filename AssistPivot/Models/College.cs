@@ -14,6 +14,19 @@ namespace AssistPivot.Models
         public string Name { get; set; }
         public string Shorthand { get; set; }
         public DateTimeOffset UpToDateAsOf { get; set; }
+
+        public bool NonStrictEquals(College otherCollege)
+        {
+            return this.Name == otherCollege.Name || this.Shorthand == otherCollege.Shorthand;
+        }
+
+        public void MakeEqual(College otherCollege)
+        {
+            this.Name = otherCollege.Name;
+            this.Shorthand = otherCollege.Shorthand;
+            this.UpToDateAsOf = otherCollege.UpToDateAsOf;
+        }
+
     }
 
 }

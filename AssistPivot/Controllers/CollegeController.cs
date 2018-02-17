@@ -1,30 +1,22 @@
-﻿using System;
+﻿using AssistPivot.DAL;
+using AssistPivot.Managers;
+using AssistPivot.Models;
 using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
+using System.Threading.Tasks;
 using System.Web.Http;
-using Newtonsoft.Json;
-using System.Web.Http.Results;
 using System.Web.Mvc;
-using AssistPivot.DAL;
 
 namespace AssistPivot.Controllers
 {
     public class CollegeController : ApiController
     {
-        public JsonResult Get()
+        public ScraperManager scraperMan = new ScraperManager();
+        public AssistDbContext db = new AssistDbContext();
+
+        public async Task<JsonResult> Get()
         {
-            var db = new AssistDbContext();
-            var a = db.Colleges.Where(c => 1 == 1).ToList();
-            var b = db.Colleges.ToList();
-
-
-            var ret = new List<CollegeDto>();
-            ret.Add(new CollegeDto() { CollegeId = 0, Name = "Allan Hancock College", Shorthand = "AHC" });
-            ret.Add(new CollegeDto() { CollegeId = 1, Name = "American River College", Shorthand = "ARC" });
-            ret.Add(new CollegeDto() { CollegeId = 2, Name = "Antelope Valley College", Shorthand = "AVC" });
-            return new JsonResult() { Data = ret, JsonRequestBehavior = JsonRequestBehavior.AllowGet };
+            List<College> result = await scraperMan.GetCollegesFromDbOrScrape();
+            return new JsonResult() { Data = result, JsonRequestBehavior = JsonRequestBehavior.AllowGet };
         }
 
         public JsonResult Get(string id)
@@ -33,13 +25,6 @@ namespace AssistPivot.Controllers
             ret.Add(new CourseDto() { CourseId = 0, CollegeId = 0, Name = "Psychology 100 Intro to Psychology", Shorthand = "PSYC 100" });
             ret.Add(new CourseDto() { CourseId = 1, CollegeId = 0, Name = "Calculus III", Shorthand = "MATH 170" });
             return new JsonResult() { Data = ret, JsonRequestBehavior = JsonRequestBehavior.AllowGet };
-        }
-
-        public class CollegeDto //todo eventually this will be replaced w/ a DB object
-        {
-            public int CollegeId { get; set; }
-            public string Name { get; set; }
-            public string Shorthand { get; set; }
         }
 
         public class CourseDto //todo eventually this will be replaced w/ a DB object
