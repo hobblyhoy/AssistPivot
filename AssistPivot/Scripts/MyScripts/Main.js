@@ -12,68 +12,64 @@
     self.courses = ko.observableArray();    
     self.selectedCourse = ko.observable();
 
-    assistHelper.test();
+    self.collegeYearStatuses = ko.observableArray();     
+
     //initial load request for our list of Colleges
-    $.ajax({
-        url: "/api/College"
-        , method: "GET"
-        , dataType: "json"
-    }).done(function (ret) {
-        console.log(ret.Data);
+    // $.ajax({
+    //     url: "/api/College"
+    //     , method: "GET"
+    //     , dataType: "json"
+    // })
+    assistHelper.conReq('College')
+    .done(function (ret) {
         self.colleges(ret.Data);
-    }).fail(function () {
-        alert("College Get() fail");
     });
 
     //initial load request for our list of Years
-    $.ajax({
-        url: "/api/Year"
-        , method: "GET"
-        , dataType: "json"
-    }).done(function (ret) {
-        console.log(ret.Data);
+    assistHelper.conReq('Year')
+    .done(function (ret) {
         self.years(ret.Data);
-    }).fail(function () {
-        alert("Year Get() fail");
+    });
+
+    //Initial load request for our College-Year status sheet
+    assistHelper.conReq('CollegeYearStatus')
+    .done(function (ret) {
+        self.collegeYearStatuses(ret.Data);
     });
 
 
     //request for college courses
-    self.courseRequest = function() {
-        if (!uw(self.selectedCollege)) return;
+    // self.courseRequest = function() {
+    //     if (!uw(self.selectedCollege)) return;
 
-        $.ajax({
-            url: "/api/College?id=" + uw(self.selectedCollege)
-            , method: "GET"
-            , dataType: "json"
-        }).done(function (ret) {
-            console.log(ret.Data);
-            self.courses(ret.Data);
-        }).fail(function () {
-            alert("Course Get() fail");
-        });
-    };
+    //     assistHelper.conReq('College', {id: uw(self.selectedCollege)})
+    //     .done(function (ret) {
+    //         console.log(ret.Data);
+    //         self.courses(ret.Data);
+    //     })
+    //     .fail(function () {
+    //         alert("Course Get() fail");
+    //     });
+    // };
 
     //handle new college selection
     self.selectedCollege.subscribe(function() {
         self.courses.removeAll();
         self.selectedCourse(null);
-        self.courseRequest();
+        //self.courseRequest();
     });
 
     //The real meat- request assist data
     self.processCourse = function() {
         if (!uw(self.selectedCourse)) return;
 
-        $.ajax({
-            url: "/api/Assist?" 
-                + "CollegeId=" + uw(self.selectedCourse).CollegeId
-                + "&CourseId=" + uw(self.selectedCourse).CourseId
-            , method: "GET"
-            , dataType: "json"
-        }).done(function (ret) {
+        assistHelper.conReq('Assist', 
+                {CollegeId: uw(self.selectedCourse).CollegeId}
+                ,{CourseId: uw(self.selectedCourse).CourseId})
+        .done(function (ret) {
             console.log(ret);
-        }).fail(function () {
+        })
+        .fail(function () {
             alert("Assist Request fail");
         });
     }
