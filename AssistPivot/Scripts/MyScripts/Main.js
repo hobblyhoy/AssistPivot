@@ -12,6 +12,7 @@
     self.courses = ko.observableArray();    
     self.selectedCourse = ko.observable();
 
+    assistHelper.test();
     //initial load request for our list of Colleges
     $.ajax({
         url: "/api/College"
@@ -35,7 +36,7 @@
     }).fail(function () {
         alert("Year Get() fail");
     });
-     
+
 
     //request for college courses
     self.courseRequest = function() {
