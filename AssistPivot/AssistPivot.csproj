@@ -204,6 +204,7 @@
     <Compile Include="Controllers\CollegeController.cs" />
     <Compile Include="Controllers\HomeController.cs" />
     <Compile Include="Controllers\ValuesController.cs" />
+    <Compile Include="Controllers\YearController.cs" />
     <Compile Include="DAL\AssistDbContext.cs" />
     <Compile Include="GlimpseSecurityPolicy.cs" />
     <Compile Include="Managers\ScraperManager.cs" />
@@ -212,6 +213,8 @@
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
+    <Compile Include="Models\CollegeYearStatus.cs" />
+    <Compile Include="Models\Year.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

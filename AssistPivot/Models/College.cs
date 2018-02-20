@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Entity;
 using System.Linq;
@@ -10,6 +11,7 @@ namespace AssistPivot.Models
     //[Table(name:"Colleges")] //redundant but useful tag if your table doesn't plurarlize well (e.g. "Library")
     public class College
     {
+        [Key]
         public int CollegeId { get; set; }
         public string Name { get; set; }
         public string Shorthand { get; set; }

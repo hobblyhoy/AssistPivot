@@ -52,24 +52,27 @@ namespace AssistPivot.Managers
                         var matchingDbCollege = dbColleges.FirstOrDefault(dbCol => dbCol.NonStrictEquals(scrapedCollege));
                         if (matchingDbCollege != null)
                         {
-                            // Make our "equal enough" db context object actually equal to what we just scrapped from the site
-                            // This will usually just be updating the UpToDateAsOf property
+                            // Make our "equal enough" db context object actually equal to what we just scrapped from the site.
+                            // This will usually just be updating the UpToDateAsOf property but will also handle updates to 
+                            // either college name or shorthand id.
                             matchingDbCollege.MakeEqual(scrapedCollege);
                         }
                         else
                         {
                             // No db object exists, create one
                             db.Colleges.Add(scrapedCollege);
-                            // Keep our own copy up-to-date as well so my return list doesn't have to make another db trip
+                            // Keep our own copy up-to-date so the return list doesn't have to make another db trip
                             dbColleges.Add(scrapedCollege);
                         }
                         // Keen eyed observers will notice this does not handle the case where the DB object exists but the scraped object
                         // does not. This is intentional. I'm not going to risk ruining a bunch of downstream data depending on these
-                        // college Id's being accurate on something I'm pulling in from an external resource.
+                        // CollegeId's on something I'm pulling in from an external resource.
                     }
 
-                    // Fire and forget
-                    db.SaveChangesAsync();
+                    // We want the full objects on the front-end including the DB ids. Thankfully the objects we pushed
+                    // to our list stay in the DB scope and are automatically updated after saving. However it does mean we 
+                    // cant fire and forget.
+                    db.SaveChanges();
 
                     return dbColleges;
                 }

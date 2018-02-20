@@ -20,7 +20,19 @@
         </div>
         <div>
             Select a year:
-            <span>TODO</span>
+            <select data-bind="options: years
+                , optionsText: 'Name'
+                , value: selectedCollege
+                @*, optionsCaption: 'Select a year...'*@
+            "></select>
+        </div>
+        <div>
+            <button data-bind="click:processCourse">Go</button>
+        </div>
+        <div>
+            This data was last updated --TODO datetime--. 
+            <br />--TODO conditional on showing this next passage bound by date-- <button>Force Update</button>
+
         </div>
         <div data-bind="if: uw(courses).length">
             Select a course:
@@ -29,7 +41,7 @@
                 , value: selectedCourse
                 @*, optionsCaption: 'Select a course...'*@
             "></select>
-            <button data-bind="click:processCourse">Go</button>
+            
         </div>
 
     </div>

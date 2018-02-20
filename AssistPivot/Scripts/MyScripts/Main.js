@@ -5,10 +5,14 @@
     //Init
     self.colleges = ko.observableArray();    
     self.selectedCollege = ko.observable();
+
+    self.years = ko.observableArray();
+    self.selectedYear = ko.observable();
+
     self.courses = ko.observableArray();    
     self.selectedCourse = ko.observable();
 
-    //initial load request for our list of colleges
+    //initial load request for our list of Colleges
     $.ajax({
         url: "/api/College"
         , method: "GET"
@@ -19,6 +23,19 @@
     }).fail(function () {
         alert("College Get() fail");
     });
+
+    //initial load request for our list of Years
+    $.ajax({
+        url: "/api/Year"
+        , method: "GET"
+        , dataType: "json"
+    }).done(function (ret) {
+        console.log(ret.Data);
+        self.years(ret.Data);
+    }).fail(function () {
+        alert("Year Get() fail");
+    });
+     
 
     //request for college courses
     self.courseRequest = function() {
