@@ -1,6 +1,6 @@
 ﻿var self = this;
 
-self.conReq = function(controller, queryStringObj) {
+self.request = function(controller, queryStringObj) {
 	var url = "/api/" + controller;
 	if (queryStringObj) {
 		url += "?";

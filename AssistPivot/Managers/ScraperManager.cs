@@ -13,9 +13,8 @@ namespace AssistPivot.Managers
     {
         public static HttpClient client = new HttpClient();
         public const string welcomePageUrl = "http://www.assist.org/web-assist/welcome.html";
-        public AssistDbContext db = new AssistDbContext();
 
-        public async Task<List<College>> GetCollegesFromDbOrScrape()
+        public async Task<List<College>> GetCollegesFromDbOrScrape(AssistDbContext db)
         {
             // Pull in the existing colleges from the DB. If they're recently updated dont bother with the scrape.
             var dbColleges = db.Colleges.ToList();

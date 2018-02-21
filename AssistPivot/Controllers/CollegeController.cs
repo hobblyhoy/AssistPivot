@@ -15,7 +15,7 @@ namespace AssistPivot.Controllers
 
         public async Task<JsonResult> Get()
         {
-            List<College> result = await scraperMan.GetCollegesFromDbOrScrape();
+            List<College> result = await scraperMan.GetCollegesFromDbOrScrape(db);
             return new JsonResult() { Data = result, JsonRequestBehavior = JsonRequestBehavior.AllowGet };
         }
 
