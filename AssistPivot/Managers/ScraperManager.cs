@@ -13,6 +13,8 @@ namespace AssistPivot.Managers
     {
         public static HttpClient client = new HttpClient();
         public const string welcomePageUrl = "http://www.assist.org/web-assist/welcome.html";
+        public const string courseSeperator = "--------------------------------------------------------------------------------";
+        public string[] emptySignifiers = { "Not Articulated", "No Comparable Course" };
 
         public async Task<List<College>> GetCollegesFromDbOrScrape(AssistDbContext db)
         {
@@ -77,5 +79,38 @@ namespace AssistPivot.Managers
                 }
             }
         }
+
+        private string RequestUrl(string fromCollegeShorthand, string toCollegeShorthand, string yearName)
+        {
+            return $"http://web2.assist.org/cgi-bin/REPORT_2/Rep2.pl?aay={yearName}&ay={yearName}&swap=1&ria={toCollegeShorthand}"
+                + $"&ia={fromCollegeShorthand}&dir=1&oia={toCollegeShorthand}&event=18&agreement=aa"
+                + $"&sia={fromCollegeShorthand}&&sidebar=false&rinst=left&mver=2&kind=5&dt=2";
+        }
+
+        public async Task<string> UpdateCourseEquivalents(College college, Year year)
+        {
+
+            var url = RequestUrl(college.Shorthand, "CPP", year.Name);
+            using (var response = await client.GetAsync(url))
+            {
+                using (var content = response.Content)
+                {
+                    var result = await content.ReadAsStringAsync();
+                    // Technically this is an html doc but the bit we care about is always going to be between the only set of PRE tags
+                    // so we'll skip the html doc overhead and do it old school
+
+                    var dirtyList = result.Between("<PRE>", "</PRE>").Trim().Split(courseSeperator);
+                    var cleanList = new List<string>();
+                    //clean phase 1
+                    //Remove the entities that dont contain the pattern *(*)*|*(*)*
+                    // also exclude our known empty comparison cases
+                    // trim out newlines and any whole lines which dont contain the verticle seperator "|"
+
+                }
+            }
+
+            return "donezo";
+        }
+
     }
 }

@@ -1,0 +1,66 @@
+selection page:
+http://web2.assist.org/web-assist/articulationAgreement.do?inst1=none&inst2=none&ia=MIRACSTA&ay=16-17&oia=CSUB&dir=1
+
+By Major: (BAD!)
+http://web2.assist.org/cgi-bin/REPORT_2/Rep2.pl?
+	aay=15-16
+	&oia=CSUB
+	&ay=16-17
+	&event=19
+	&ria=CSUB
+	&agreement=aa
+	&sia=MIRACSTA
+	&ia=MIRACSTA
+	&dir=1&
+	&sidebar=false
+	&rinst=left
+	&mver=2
+	&kind=5
+	&dt=2
+
+By CSUMB dept (all)
+http://web2.assist.org/cgi-bin/REPORT_2/Rep2.pl?
+	aay=15-16
+	&ay=16-17
+	&swap=1 //determine which POV to do the search from. in this example CSUB is on the left and MCC is on the right.
+			//this will swap them. By default, empty results from the "left" side are excluded so it's not a 1-1 change.
+	&ria=CSUB
+	&ia=MIRACSTA
+	&dir=1 //when 0, only shows the introduction, no actual course content
+	&oia=CSUB
+	&event=18 //for generating teh different types of reports (like the one above is 19 to be by major, this one is 18 for dept)
+	&agreement=aa
+	&sia=MIRACSTA&
+	&sidebar=false
+	&rinst=left
+	&mver=2
+	&kind=5
+	&dt=2
+
+	department seems cleaner.
+
+
+event codes 
+Note: line count is reported instead of request time. Reason being I was getting VERY drastic and inconsistant differences in request time for identical requests (up to 5x)
+Also I used the params from report 18 since it's pretty complete. Other reports that didn't come in (designated by "--") may very well just not have the correct set of params tied to them
+request: http://web2.assist.org/cgi-bin/REPORT_2/Rep2.pl?aay=15-16&ay=15-16&swap=1&ria=CSUB&ia=MIRACSTA&dir=1&oia=CSUB&event=<some_num_here>&agreement=aa&sia=MIRACSTA&&sidebar=false&rinst=left&mver=2&kind=5&dt=2
+1-11 --
+12 ASSIST: All Instances Report // !! Looks like a really full report of all classes. 2488 lines
+13 ASSIST: By Single Course Report // is actually a link to another request, leads to broken pdf
+14 List Of Majors // doesn't actually contain any data
+15 ASSIST: By Department Report // "Orphan Instances" only
+16 ASSIST: By Department Report // "Terminated Instances" only
+17 --
+18 ASSIST: By Department Report //Standard by dept lookup. 1147 lines
+19 ASSIST: By Major Report //3224 lines
+20 --
+21 ASSIST: Articulation For GE/Breadth Report //no actual content. 19 lines
+22 --
+23 No title // seems to be a list of all the courses they have for MIRACSTA. 1302 lines
+24 No title // more course but smaller list, looks igetc/csu ge related. 1050 lines
+25 No title // similar to 24. 870 lines
+26 No title // similar to 24. 971 lines
+27
+28
+29
+30

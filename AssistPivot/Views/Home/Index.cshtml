@@ -27,11 +27,11 @@
             "></select>
         </div>
         <div>
-            <!-- koDEBUGif: uw(selectedCollege) && uw(selectedYear) && uw(selectedCollegeYearStatus) -->
-            <!-- ko if: uw(selectedCollege) && uw(selectedYear) -->
+            <!-- ko if: uw(selectedCollege) && uw(selectedYear) && uw(selectedCollegeYearStatus) -->
+            <!-- koDEBUGif: uw(selectedCollege) && uw(selectedYear) -->
             <span data-bind="text:uw(selectedCollege).Name"></span> for year 
             <span data-bind="text:uw(selectedYear).Name"></span> last updated
-            <!-- ko if: false-->
+            <!-- koDEBUGif: false-->
             <span data-bind="text:uw(selectedCollegeYearStatus).UpToDateAsOf"></span>.
             <!-- /ko -->
             <br />Case within last 24 hours: <input type="checkbox" disabled /> "Check for updates" unchecked and disabled

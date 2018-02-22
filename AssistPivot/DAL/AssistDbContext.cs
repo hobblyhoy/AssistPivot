@@ -12,6 +12,7 @@ namespace AssistPivot.DAL
     {
         public AssistDbContext() : base("AssistDbContext")
         {
+            Database.Log = sql => System.Diagnostics.Debug.WriteLine(sql);
         }
 
         public DbSet<College> Colleges { get; set; }

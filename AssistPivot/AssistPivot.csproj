@@ -54,8 +54,8 @@
     <Reference Include="Glimpse.Ado, Version=1.7.3.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\Glimpse.Ado.1.7.3\lib\net45\Glimpse.Ado.dll</HintPath>
     </Reference>
-    <Reference Include="Glimpse.AspNet, Version=1.8.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Glimpse.AspNet.1.8.0\lib\net45\Glimpse.AspNet.dll</HintPath>
+    <Reference Include="Glimpse.AspNet, Version=1.9.2.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Glimpse.AspNet.1.9.2\lib\net45\Glimpse.AspNet.dll</HintPath>
     </Reference>
     <Reference Include="Glimpse.Core, Version=1.8.6.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\Glimpse.1.8.6\lib\net45\Glimpse.Core.dll</HintPath>
@@ -208,6 +208,7 @@
     <Compile Include="Controllers\YearController.cs" />
     <Compile Include="DAL\AssistDbContext.cs" />
     <Compile Include="GlimpseSecurityPolicy.cs" />
+    <Compile Include="Managers\ExtensionManager.cs" />
     <Compile Include="Managers\ScraperManager.cs" />
     <Compile Include="Migrations\Configuration.cs" />
     <Compile Include="Models\College.cs" />
