@@ -3,8 +3,10 @@ using AssistPivot.Models;
 using HtmlAgilityPack;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace AssistPivot.Managers
@@ -13,7 +15,7 @@ namespace AssistPivot.Managers
     {
         public static HttpClient client = new HttpClient();
         public const string welcomePageUrl = "http://www.assist.org/web-assist/welcome.html";
-        public const string courseSeperator = "--------------------------------------------------------------------------------";
+        public const string courseGroupSeperator = "--------------------------------------------------------------------------------";
         public string[] emptySignifiers = { "Not Articulated", "No Comparable Course" };
 
         public async Task<List<College>> GetCollegesFromDbOrScrape(AssistDbContext db)
@@ -91,23 +93,62 @@ namespace AssistPivot.Managers
         {
 
             var url = RequestUrl(college.Shorthand, "CPP", year.Name);
-            using (var response = await client.GetAsync(url))
+            //using (var response = await client.GetAsync(url))
+            //{
+            //    using (var content = response.Content)
             {
-                using (var content = response.Content)
+                //var result = await content.ReadAsStringAsync();
+                var result = DebugManager.RequestAhcToCpp1516();
+                // Technically this is an html doc but the bit we care about is always going to be between the only set of PRE tags
+                // so we'll skip the html doc overhead and do it old school
+                var dirtyList = result.Between("<PRE>", "</PRE>").Trim().Split(courseGroupSeperator);
+                var cleanList = new List<string>();
+                var matchesTwoCourses = @"[(].*?[0-9].*?[)].*?[|].*?[(].*?[0-9].*?[)]";
+                var twoCoursesRegex = new Regex(matchesTwoCourses, RegexOptions.Singleline);
+                // Clean phase 1, remove single courses or non course data, add these to cleanList
+                foreach (var potentialCourseRela in dirtyList)
                 {
-                    var result = await content.ReadAsStringAsync();
-                    // Technically this is an html doc but the bit we care about is always going to be between the only set of PRE tags
-                    // so we'll skip the html doc overhead and do it old school
-
-                    var dirtyList = result.Between("<PRE>", "</PRE>").Trim().Split(courseSeperator);
-                    var cleanList = new List<string>();
-                    //clean phase 1
-                    //Remove the entities that dont contain the pattern *(*)*|*(*)*
+                    // Remove the entities that dont contain the pattern *(*)*|*(*)* 
                     // also exclude our known empty comparison cases
-                    // trim out newlines and any whole lines which dont contain the verticle seperator "|"
+                    if (twoCoursesRegex.IsMatch(potentialCourseRela) && !emptySignifiers.Any(s => potentialCourseRela.Contains(s)))
+                    {
+                        cleanList.Add(potentialCourseRela);
+                    }
 
                 }
+
+                // Clean phase 2 + parse, all within each block of course relationships
+                // remove any whole lines which dont contain the verticle seperator "|" (notes, department headers, etc. Never course data)
+                // parse the ones which do into to/from courses
+                var courseList = new List<Course>();
+                foreach (var courseRelaRaw in cleanList)
+                {
+                    using (StringReader reader = new StringReader(courseRelaRaw))
+                    {
+                        string line;
+                        var fromCourses = new Course();
+                        var toCourse = new Course();
+                        while ((line = reader.ReadLine()) != null)
+                        {
+                            // if the line doesn't contain a |, skip (notes, department headers, etc. Never course data)
+                            if (line.IndexOf('|') == -1) continue;
+                            // break line into to/from parts (before/after the |)
+                            line = line.Substring(16); //remove assist formatting while retaining indentation
+                            line = "hell | oh |boy";
+                            var lineParts = line.Split("|", 2);
+                            // if linePart starts with a " " it's a continuation of description, add onto our current course.
+
+                            //if not it's a new course. Save the old, create a new and parse for name, start of description, and credits
+                        }
+                    }
+                }
+                
+
+
+
+                var test = cleanList.Stringify("\r\n>>>>>>>>\r\n");
             }
+            //}
 
             return "donezo";
         }
