@@ -41,7 +41,7 @@ namespace AssistPivot.Controllers
 
                 var college = db.Colleges.Find(collegeId);
                 var year = db.Years.Find(yearId);
-                var result = await scraperMan.UpdateCourseEquivalents(college, year);
+                var result = await scraperMan.UpdateCourseEquivalents(db, college, year);
 
             }
 

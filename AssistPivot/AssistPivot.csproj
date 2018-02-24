@@ -210,7 +210,6 @@
     <Compile Include="GlimpseSecurityPolicy.cs" />
     <Compile Include="Managers\DebugManager.cs" />
     <Compile Include="Managers\ExtensionManager.cs" />
-    <Compile Include="Managers\ListExtensions.cs" />
     <Compile Include="Managers\ScraperManager.cs" />
     <Compile Include="Migrations\Configuration.cs" />
     <Compile Include="Models\College.cs" />
@@ -219,6 +218,7 @@
     </Compile>
     <Compile Include="Models\CollegeYearStatus.cs" />
     <Compile Include="Models\Course.cs" />
+    <Compile Include="Models\CourseRelationship.cs" />
     <Compile Include="Models\Year.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
