@@ -6,7 +6,7 @@ using System.Web;
 
 namespace AssistPivot.Models
 {
-    public enum CourseRelationshipType { Unset, None, And, Or}
+    public enum CourseRelationshipType { Unset, None, And, Or }
 
     public class CourseRelationship
     {

@@ -208,6 +208,7 @@
     <Compile Include="Controllers\YearController.cs" />
     <Compile Include="DAL\AssistDbContext.cs" />
     <Compile Include="GlimpseSecurityPolicy.cs" />
+    <Compile Include="Managers\AssistManager.cs" />
     <Compile Include="Managers\DebugManager.cs" />
     <Compile Include="Managers\ExtensionManager.cs" />
     <Compile Include="Managers\ScraperManager.cs" />

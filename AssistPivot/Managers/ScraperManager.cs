@@ -17,6 +17,12 @@ namespace AssistPivot.Managers
         public const string welcomePageUrl = "http://www.assist.org/web-assist/welcome.html";
         public const string courseGroupSeperator = "--------------------------------------------------------------------------------";
         public string[] emptySignifiers = { "Not Articulated", "No Comparable Course" };
+        public AssistManager assistMan = null;
+        private AssistManager AssistMan()
+        {
+            if (assistMan == null) assistMan = new AssistManager();
+            return assistMan;
+        }
 
         public async Task<List<College>> GetCollegesFromDbOrScrape(AssistDbContext db)
         {
@@ -89,11 +95,20 @@ namespace AssistPivot.Managers
                 + $"&sia={fromCollegeShorthand}&&sidebar=false&rinst=left&mver=2&kind=5&dt=2";
         }
 
-        public async Task<string> UpdateCourseEquivalents(AssistDbContext db, College fromCollege, Year year)
+        public async Task UpdateCourseRelationships(AssistDbContext db, College fromCollege, Year year)
         {
-            var toColleges = db.Colleges.Where(c => c.CollegeId != fromCollege.CollegeId).ToList();
+            var toColleges = db.Colleges.Where(c => c != fromCollege).ToList();
             var allCoursesFromDb = db.Courses.Include("College").Include("Year").ToList();
             var allCourseRelationsipsFromDb = db.CourseRelationships.Include("ToCourses").Include("FromCourses").ToList();
+
+            // Clear out any existing data we're about to grab
+            // Note that a particular course can apply to relationships spanning multiple fromColleges so once created we NEVER delete those
+            var courseRelasToDelete = AssistMan().GetCourseRelationships(db, fromCollege, year);
+            foreach (var courseRela in courseRelasToDelete)
+            {
+                db.CourseRelationships.Remove(courseRela);
+            }
+            db.SaveChanges();
 
             foreach (var toCollege in toColleges)
             {
@@ -190,12 +205,9 @@ namespace AssistPivot.Managers
                     }
                 }
 
-                //Save after each college has been processed.
-
+                //Save after each toCollege has been processed.
                 db.SaveChanges();
             }
-
-            return "donezo";
         }
 
         private void UpdateCourseListAndReRefToDbObjectsIfTheyExist(AssistDbContext db, List<Course> allCoursesFromDb, List<Course> coursesToAdd, Course updateTemplate)

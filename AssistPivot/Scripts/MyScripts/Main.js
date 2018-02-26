@@ -29,31 +29,37 @@
         return ret;
     });
 
-    //initial load request for our list of Colleges
-    // assistHelper.request('College')
-    // .done(function (ret) {
-    //     self.colleges(ret.Data);
-    // });
+    // Initial load request for our list of Colleges
+    assistHelper.request('College')
+    .done(function (ret) {
+        self.colleges(ret.Data);
+    });
 
-    // //initial load request for our list of Years
-    // assistHelper.request('Year')
-    // .done(function (ret) {
-    //     self.years(ret.Data);
-    // });
+    // Initial load request for our list of Years
+    assistHelper.request('Year')
+    .done(function (ret) {
+        var sorted = _.chain(ret.Data)
+            .sortBy(function(year) {
+                return year.FirstYearExpanded;
+            })
+            .reverse()
+            .value();
+        self.years(sorted);
+    });
 
-    // //Initial load request for our College-Year status sheet
-    // assistHelper.request('CollegeYearStatus')
-    // .done(function (ret) {
-    //     self.collegeYearStatuses(ret.Data);
-    // });
+    //Initial load request for our College-Year status sheet
+    assistHelper.request('CollegeYearStatus')
+    .done(function (ret) {
+        self.collegeYearStatuses(ret.Data);
+    });
 
     //debug func to make my life easier
-    var queryObj = {
-        collegeId: 1
-        ,yearId: 31
-        ,updateRequest: true
-    }
-    assistHelper.request('Assist', queryObj)    
+    // var queryObj = {
+    //     collegeId: 1
+    //     ,yearId: 31
+    //     ,updateRequest: true
+    // }
+    // assistHelper.request('Assist', queryObj)    
 
 
     //handle new college selection
@@ -72,8 +78,7 @@
         }
         assistHelper.request('Assist', queryObj)
         .done(function (ret) {
-            //console.log(ret);
-            //debugger;
+            //self.collegeYearStatuses(ret.Data);
             //todo update CollegeYearStatus
         });
     }
