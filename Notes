@@ -33,9 +33,9 @@ http://web2.assist.org/cgi-bin/REPORT_2/Rep2.pl?
 	&sia=MIRACSTA&
 	&sidebar=false
 	&rinst=left
-	&mver=2
-	&kind=5
-	&dt=2
+	&mver=2 //always gotta be 2 or it fails
+	&kind=5 //some styling elements change when its anythign other than 5
+	&dt=2 //0 got me a broken pdf, 1 just the header, 3 failed
 
 	department seems cleaner.
 
@@ -60,7 +60,14 @@ request: http://web2.assist.org/cgi-bin/REPORT_2/Rep2.pl?aay=15-16&ay=15-16&swap
 24 No title // more course but smaller list, looks igetc/csu ge related. 1050 lines
 25 No title // similar to 24. 870 lines
 26 No title // similar to 24. 971 lines
-27
-28
-29
-30
+27 No title // similar to 24. 849 lines
+28 No title // looks specific to UC xfers. Still only MIRACSTA classes. 1064 lines
+29 No title // similar to 28. 440 lines
+30 No title // some kind of history requirement for MIRACSTA. 78 lines
+31-40 --
+41 ASSIST Articulation Database Summary // no actual content. 24 lines
+42-49 --
+50 Lower-Division Transfer Pattern Reports // no actual content. 11 lines
+51-63 --
+
+Recompared our most promising reports, 18 and 12 with different colleges. While the 12 report certainly is formatted more straight foreward it raises just as many parsing difficulties as the 18 report. 18 is also currently in use on assist so less likely to removed any time soon and contains less lines. For that reason I'm going to keep it to report 18.
