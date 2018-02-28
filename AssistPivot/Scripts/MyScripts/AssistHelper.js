@@ -1,8 +1,8 @@
 ﻿var self = this;
 
-self.request = function(controller, queryStringObj) {
+self.request = function(controller, queryStringObj, loadingFunc) {
 	var url = "/api/" + controller;
-	if (queryStringObj) {
+	if (queryStringObj && !_.isEmpty(queryStringObj)) {
 		url += "?";
 		_(queryStringObj).forEach(function(value, key) {
 			url += key + '=' + value + '&';
@@ -21,6 +21,7 @@ self.request = function(controller, queryStringObj) {
     	//debug
     	console.log('Data came back from ' + url);
     	console.log(ret.Data);
+    	loadingFunc(false);
     });
 };
 

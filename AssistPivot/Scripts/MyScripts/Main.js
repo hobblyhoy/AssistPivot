@@ -3,6 +3,9 @@
     window.uw = ko.unwrap;
 
     //Init
+    self.notificationText = ko.observable("Initial load in progress, please wait");
+    self.notificationType = ko.observable("Load"); // None / Notice / Error / Load
+
     self.colleges = ko.observableArray();    
     self.selectedCollege = ko.observable();
 
@@ -30,13 +33,15 @@
     });
 
     // Initial load request for our list of Colleges
-    assistHelper.request('College')
+    self.collegesLoading = ko.observable(true);
+    assistHelper.request('College', {}, self.collegesLoading)
     .done(function (ret) {
         self.colleges(ret.Data);
     });
 
     // Initial load request for our list of Years
-    assistHelper.request('Year')
+    self.yearsLoading = ko.observable(true);
+    assistHelper.request('Year', {}, self.yearsLoading)
     .done(function (ret) {
         var sorted = _.chain(ret.Data)
             .sortBy(function(year) {
@@ -48,18 +53,34 @@
     });
 
     //Initial load request for our College-Year status sheet
-    assistHelper.request('CollegeYearStatus')
+    self.collegeYearStatusesLoading = ko.observable(true);
+    assistHelper.request('CollegeYearStatus', {}, self.collegeYearStatusesLoading)
     .done(function (ret) {
-        self.collegeYearStatuses(ret.Data);
+        var data = ret.Data;
+        var forceNoUpdates = _(data).some(function(status) {
+            return status.UpdateAllowed === "AbsolutelyNot";
+        });
+        if (forceNoUpdates) {
+            _(data).foreach(function(status) {
+                status.UpdateAllowed = "No";
+            });
+            self.notificationType("Notice");
+            self.notificationText("A college update request is in progress. You will only be able to retrieve cached data until this completes")
+        }
+        self.collegeYearStatuses(data);
     });
 
-    //debug func to make my life easier
-    // var queryObj = {
-    //     collegeId: 1
-    //     ,yearId: 31
-    //     ,updateRequest: true
-    // }
-    // assistHelper.request('Assist', queryObj)    
+    self.initialLoadIsLoading = ko.computed(function() {
+        return uw(self.collegesLoading) || uw(self.yearsLoading) || uw(self.collegeYearStatusesLoading);
+    });
+
+    self.initialLoadTextUpdater = ko.computed(function() {
+        if (!uw(self.initialLoadIsLoading)) {
+            self.notificationType(null);
+            self.notificationText(null);
+        }
+    });
+
 
 
     //handle new college selection
@@ -70,13 +91,15 @@
     });
 
     //The real meat- request assist data
+    self.processLoading = ko.observable(false);
     self.process = function() {
+        self.processLoading(true);
         var queryObj = {
             collegeId: uw(self.selectedCollege).CollegeId
             ,yearId: uw(self.selectedYear).YearId
             ,updateRequest: uw(self.updateRequest)
         }
-        assistHelper.request('Assist', queryObj)
+        assistHelper.request('Assist', queryObj, self.processLoading)
         .done(function (ret) {
             //self.collegeYearStatuses(ret.Data);
             //todo update CollegeYearStatus

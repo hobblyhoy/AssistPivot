@@ -95,10 +95,12 @@ namespace AssistPivot.Managers
 
         public List<Course> GetCourses(AssistDbContext db, College college, Year year)
         {
-            return db.Courses
+            var ret = db.Courses
                     .Include("College").Include("Year")
-                    .Where(course => course.College == college && course.Year == year)
+                    .Where(course => course.College.CollegeId == college.CollegeId && course.Year.YearId == year.YearId)
                     .ToList();
+
+            return ret;
         }
 
         public List<CourseRelationship> GetCourseRelationships(AssistDbContext db, College college, Year year)
@@ -109,9 +111,10 @@ namespace AssistPivot.Managers
 
         public List<CourseRelationship> GetCourseRelationships(AssistDbContext db, List<Course> courses)
         {
+            var coursesIds = courses.Select(c => c.CourseId);
             //get the list of relationships which match any one of these courses on the "from" side
             return db.CourseRelationships
-                    .Where(rela => rela.FromCourses.Any(course => courses.Contains(course)))
+                    .Where(rela => rela.FromCourses.Any(course => coursesIds.Contains(course.CourseId)))
                     .ToList();
         }
 

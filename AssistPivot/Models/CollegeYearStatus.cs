@@ -51,6 +51,7 @@ namespace AssistPivot.Models
         public int YearId { get; set; }
         public DateTimeOffset? UpToDateAsOf { get; set; }
         public UpdateStatusTypes UpdateStatus { get; set; }
+        public string UpdateAllowed { get; set; } 
 
         public CollegeYearStatusDto(CollegeYearStatus cys)
         {
@@ -59,6 +60,26 @@ namespace AssistPivot.Models
             YearId = cys.Year.YearId;
             UpToDateAsOf = cys.UpToDateAsOf;
             UpdateStatus = cys.UpdateStatus;
+
+            // Actual checks happens server-side. This is just for ui.
+            // No enum since we only use it here and the less stuff collapsing to integers on the frontend the better
+            if (UpdateStatus == UpdateStatusTypes.InFlight)
+            {
+                UpdateAllowed = "AsbolutelyNot"; //AbsolutelyNot is a No that overrides EVERY other CollegeYearStatus
+            }
+            else if (UpdateStatus != UpdateStatusTypes.Completed)
+            {
+                UpdateAllowed = "Force";
+            }
+            else if (cys.UpToDateAsOf > DateTimeOffset.Now.AddDays(-14))
+            {
+                UpdateAllowed = "No";
+            }
+            else
+            {
+                UpdateAllowed = "Yes";
+            }
+             
         }
     }
 }

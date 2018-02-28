@@ -271,6 +271,7 @@ namespace AssistPivot.Managers
             {
                 // If linePart starts with a " " it's a continuation of description
                 processLineObj.Course.Description += " " + courseLine.Trim();
+                processLineObj.Course.Description = processLineObj.Course.Description.Trim();
             }
         }
 
