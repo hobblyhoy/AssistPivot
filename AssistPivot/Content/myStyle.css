@@ -1,0 +1,42 @@
+﻿#checkbox .recentUpdateText {
+    display: none;
+}
+
+#checkbox:hover .recentUpdateText {
+    display: inline;
+}
+
+
+.LeftCoursePad {
+    padding-right: 0;
+}
+
+.RightCoursePad {
+    padding-left: 0;
+}
+
+.LeftCourseRound {
+    border-bottom-left-radius: 6px;
+    border-top-left-radius: 6px;
+    border-right: 2px dashed #555555
+}
+
+.RightCourseRound {
+    border-bottom-right-radius: 6px;
+    border-top-right-radius: 6px;
+}
+
+.NotificationBar {
+    background-color: #EEEEEE;
+    min-height: 3em;
+    border-radius: 6px;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    margin-bottom: 1em;
+    padding-left: 60px
+}
+
+.NotificationContent {
+    padding-top: 0.8em;
+    text-align: center;
+}

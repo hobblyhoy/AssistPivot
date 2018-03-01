@@ -1,22 +1,24 @@
 ﻿<div class="jumbotron" style="padding-top: 10px; padding-bottom: 10px; margin-bottom: 0; background-color:#CCCCCC; border-bottom-left-radius: 0; border-bottom-right-radius:0">
     <h1>Assist Pivot</h1>
-    <p>Assist Pivot is a tool for analyzing course equivalences from the point of view of particular college course rather than college to college</p>
+    <p>A tool for analyzing course equivalencies from the point of view of particular college course.</p>
     @*<h2>But why tho</h2>
     <p>For the situations where you need a particular course to transfer or complete along side your existing coursework and you dont care where you complete it. This is particularly true for classes you intend to take online.</p>
     <p>Requests may happen immediately or may be up to a week old because we like assist and dont want to accidentally ddos them.</p>
     <p>Truthfully I'm mostly making this because I wanted to learn how to scrape / parse html pages, how to manage atypical data relationships, and cache management from the ground up.</p>*@
 </div>
-<div style="background-color:#EEEEEE; min-height:3em; border-radius:6px; border-top-left-radius:0; border-top-right-radius:0; margin-bottom: 1em; padding-left: 60px">
-    <!-- ko if: uw(notificationType) === "Load" -->
-    LOADICON
-    <!-- /ko -->
-    <!-- ko if: uw(notificationType) === "Notice" -->
-    NoticeIcon
-    <!-- /ko -->
-    <!-- ko if: uw(notificationType) === "Error" -->
-    ErrorIcon
-    <!-- /ko -->
-    <span data-bind="text:notificationText"></span>
+<div class="NotificationBar">
+    <div class="NotificationContent">
+        <!-- ko if: uw(notificationType) === "Load" -->
+        LOADICON
+        <!-- /ko -->
+        <!-- ko if: uw(notificationType) === "Notice" -->
+        NoticeIcon
+        <!-- /ko -->
+        <!-- ko if: uw(notificationType) === "Error" -->
+        ErrorIcon
+        <!-- /ko -->
+        <span data-bind="text:notificationText"></span>
+    </div>
 </div>
 <div class="row">
     <div class="col-md-12">
@@ -27,8 +29,6 @@
                 , value: selectedCollege
                 @*, optionsCaption: 'Select a college...'*@
             "></select>
-            
-            <span>TODO spinner</span>
         </div>
         <div>
             Select a year:
@@ -38,31 +38,55 @@
                 , optionsCaption: 'Select a year...'
             "></select>
         </div>
+        <!-- ko if: uw(selectedCollege) && uw(selectedYear) && uw(selectedCollegeYearStatus) -->
         <div>
-            <!-- ko if: uw(selectedCollege) && uw(selectedYear) && uw(selectedCollegeYearStatus) -->
-            <!-- koDEBUGif: uw(selectedCollege) && uw(selectedYear) -->
             <span data-bind="text:uw(selectedCollege).Name"></span> for year 
             <span data-bind="text:uw(selectedYear).Name"></span> last updated
-            <!-- koDEBUGif: false-->
-            <span data-bind="text:uw(selectedCollegeYearStatus).UpToDateAsOf"></span>.
-            <!-- /ko -->
-            <br />Case within last 24 hours: <input type="checkbox" disabled /> "Check for updates" unchecked and disabled
-            <br />Case within the last 14 days: <input type="checkbox" />Check for updates" unchecked
-            <br />Case 14+ days: <input type="checkbox" value="true" checked disabled />"Check for updates" checked and disabled
+            <strong><span data-bind="text:uw(selectedCollegeYearStatus).UpToDateAsOf"></span></strong>.
+            <div>
+                Full update:
+                <span id="checkbox">
+                    <input type="checkbox" data-bind="checked: updateCheckboxValue, disable: updateCheckboxDisabled"/>
+                    <!-- ko if: uw(updateCheckboxDisabled) && !uw(updateCheckboxValue) -->
+                    <span class="recentUpdateText">You cannot request updates at this time.</span>
+                    <!-- /ko -->
+                    <!-- ko if: updateCheckboxValue -->
+                    <strong>NOTE: Full updates can take up to an hour to complete. This college / year will not be available during the update.</strong>
+                    <!-- /ko -->
+                </span>
+            </div>
             <div>
                 <button data-bind="click:process">Go</button>
             </div>
             <!-- /ko -->
         </div>
-        <div data-bind="if: uw(courses).length">
+        <!-- /ko -->
+        <!-- ko if: uw(courses).length -->
+        <div style="margin-bottom:1em">
             Select a course:
             <select data-bind="options: courses
                 , optionsText: 'Name'
                 , value: selectedCourse
-                @*, optionsCaption: 'Select a course...'*@
+                , optionsCaption: 'Select a course...'
             "></select>
-            
         </div>
+        <!-- /ko -->
+        <!-- ko foreach: courseRelationshipsFromSelected -->
+        <div class="col-md-6 col-xs-12 row">
+            <div class="col-xs-12">
+                To: <span data-bind="text: ToCollegeName"></span>
+                @*<button data-bind="click: function() {debugger}"> click</button>*@
+            </div>
+            <div data-bind="template: {name: 'course-template', data: function() { return {
+                 CourseWrapper: FromCourses
+                 , SeperatorText:FromRelationshipSeperatorText
+                 , Position: 'Left'}}}"></div>
+            <div data-bind="template: {name: 'course-template', data: function() { return {
+                 CourseWrapper: ToCourses
+                 , SeperatorText:ToRelationshipSeperatorText
+                 , Position: 'Right'}}}"></div>
+        </div>
+        <!-- /ko -->
 
     </div>
 

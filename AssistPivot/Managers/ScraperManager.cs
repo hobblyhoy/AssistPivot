@@ -97,7 +97,7 @@ namespace AssistPivot.Managers
 
         public async Task UpdateCourseRelationships(AssistDbContext db, College fromCollege, Year year)
         {
-            var toColleges = db.Colleges.Where(c => c != fromCollege).ToList();
+            var toColleges = db.Colleges.Where(c => c.CollegeId != fromCollege.CollegeId).ToList();
             var allCoursesFromDb = db.Courses.Include("College").Include("Year").ToList();
             var allCourseRelationsipsFromDb = db.CourseRelationships.Include("ToCourses").Include("FromCourses").ToList();
 
@@ -265,7 +265,15 @@ namespace AssistPivot.Managers
                 var credits = courseLine.Substring(courseLine.Length - 2, 1);
                 if (int.TryParse(credits, out parseResult)) processLineObj.Course.Credits = parseResult;
                 //Get the description (or at least the start of it)
-                processLineObj.Course.Description = courseLine.Substring(processLineObj.Course.Name.Length, courseLine.Length - processLineObj.Course.Name.Length - 3).Trim();
+                var subStrLen = courseLine.Length - processLineObj.Course.Name.Length - 3;
+                if (subStrLen > 0)
+                {
+                    processLineObj.Course.Description = courseLine.Substring(processLineObj.Course.Name.Length, subStrLen).Trim();
+                }
+                else
+                {
+                    processLineObj.Course.Description = "";
+                }
             }
             else
             {

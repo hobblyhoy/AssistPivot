@@ -65,7 +65,7 @@ namespace AssistPivot.Models
             // No enum since we only use it here and the less stuff collapsing to integers on the frontend the better
             if (UpdateStatus == UpdateStatusTypes.InFlight)
             {
-                UpdateAllowed = "AsbolutelyNot"; //AbsolutelyNot is a No that overrides EVERY other CollegeYearStatus
+                UpdateAllowed = "AbsolutelyNot"; //AbsolutelyNot is a No that overrides EVERY other CollegeYearStatus
             }
             else if (UpdateStatus != UpdateStatusTypes.Completed)
             {

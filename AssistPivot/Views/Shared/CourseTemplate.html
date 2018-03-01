@@ -1,0 +1,21 @@
+﻿<script type="text/html" id="course-template">
+    <div class="col-xs-6" style="margin-bottom: 1em" data-bind="css: {LeftCoursePad: Position === 'Left', RightCoursePad: Position === 'Right'}">
+        <div style="background-color:#EEEEEE; padding: 5px;" data-bind="css: {LeftCourseRound: Position === 'Left', RightCourseRound: Position === 'Right'}">
+            <!-- ko foreach: CourseWrapper -->
+            <div>
+                <strong><span data-bind="text: Name"></span></strong>
+                <span class="pull-right">
+                    (<span data-bind="text: Credits"></span>)
+                </span>
+            </div>
+            <div>
+                <span data-bind="text: Description"></span>
+            </div>
+            <button data-bind="click: function() {debugger}">template in</button>
+            <!-- ko if: uw($index) !== $parent.CourseWrapper.length - 1 -->
+            <center><strong>--- <span data-bind="text:$parent.SeperatorText"></span> ---</strong></center>
+            <!-- /ko -->
+            <!-- /ko -->
+        </div>
+    </div>
+</script>
