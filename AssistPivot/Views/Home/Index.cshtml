@@ -56,12 +56,12 @@
                 </span>
             </div>
             <div>
-                <button data-bind="click:process">Go</button>
+                <button data-bind="click:process, disable: processLoading">Go</button>
             </div>
             <!-- /ko -->
         </div>
         <!-- /ko -->
-        <!-- ko if: uw(courses).length -->
+        <!-- ko if: courses.length -->
         <div style="margin-bottom:1em">
             Select a course:
             <select data-bind="options: courses

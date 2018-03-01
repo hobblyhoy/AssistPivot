@@ -24,6 +24,11 @@ namespace AssistPivot.Managers
             return assistMan;
         }
 
+        public ScraperManager()
+        {
+            client.Timeout = TimeSpan.FromMinutes(15);
+        }
+
         public async Task<List<College>> GetCollegesFromDbOrScrape(AssistDbContext db)
         {
             // Pull in the existing colleges from the DB. If they're recently updated dont bother with the scrape.
@@ -95,6 +100,8 @@ namespace AssistPivot.Managers
                 + $"&sia={fromCollegeShorthand}&&sidebar=false&rinst=left&mver=2&kind=5&dt=2";
         }
 
+        // This was written from the point of view of being provided a From college and finding argreements From this college To all others
+        // However this was just to make dev easier, it can be very simply reversed by swapping the courses in the request.
         public async Task UpdateCourseRelationships(AssistDbContext db, College fromCollege, Year year)
         {
             var toColleges = db.Colleges.Where(c => c.CollegeId != fromCollege.CollegeId).ToList();
@@ -123,6 +130,8 @@ namespace AssistPivot.Managers
                         //result = DebugManager.RequestAhcToCpp1516();
                     }
                 }
+                var emptyRequestLength = 686;
+                if (result.Length <= emptyRequestLength) continue;
                 // Technically this is an html doc but the bit we care about is always going to be between the only set of PRE tags
                 // so we'll skip the html doc overhead and do it old school
                 var dirtyList = result.Between("<PRE>", "</PRE>").Trim().Split(courseGroupSeperator);
@@ -142,7 +151,6 @@ namespace AssistPivot.Managers
                 }
 
                 // Clean phase 2 + parse, all within each block of course relationships
-                // remove any whole lines which dont contain the verticle seperator "|" (notes, department headers, etc. Never course data)
                 // parse the ones which do into to/from courses
                 foreach (var courseRelaRaw in validCourseRelationships)
                 {
@@ -157,7 +165,7 @@ namespace AssistPivot.Managers
                             // if the line doesn't contain a |, skip (notes, department headers, etc. Never course data)
                             if (line.IndexOf('|') == -1) continue;
                             // break line into to/from parts (before/after the |  ...order matters!)
-                            line = line.Substring(16); //remove assist formatting while retaining indentation
+                            //line = line.Substring(16); //remove assist formatting while retaining indentation
                             var lineParts = line.Split("|", 2);
 
                             ProcessLine(toProcessLineObj, lineParts[0]);
@@ -233,6 +241,20 @@ namespace AssistPivot.Managers
         // a custom class to hold onto that can be easily be worked on without worrying about passing stuff back and forth.
         private void ProcessLine(ProcessLineObj processLineObj, string courseLine)
         {
+            // Check for & and ORs relationships. Could regex this but it's only two strings so w/e
+            var andSignifier = "<B ><U >&</B></U>";
+            var orSignifier = "<B ><U >OR</B></U>";
+            if (courseLine.Contains(andSignifier))
+            {
+                processLineObj.RelationshipType = CourseRelationshipType.And;
+                courseLine = courseLine.Replace(andSignifier, "");
+            }
+            else if (courseLine.Contains(orSignifier))
+            {
+                processLineObj.RelationshipType = CourseRelationshipType.Or;
+                courseLine = courseLine.Replace(orSignifier, "");
+            }
+
             if (courseLine.Substring(0, 1) != " ")
             {
                 //we've reached a new (or the first) course. push the existing one onto our list and start a new
@@ -247,22 +269,9 @@ namespace AssistPivot.Managers
                 var courseNameRegex = new Regex(matchesFirstTwoWords);
                 var match = courseNameRegex.Match(courseLine);
                 processLineObj.Course.Name = match.Value;
-                // Check for & and ORs relationships. Could regex this but it's only two strings so w/e
-                var andSignifier = "<B ><U >&</B></U>";
-                var orSignifier = "<B ><U >OR</B></U>";
-                if (courseLine.Contains(andSignifier))
-                {
-                    processLineObj.RelationshipType = CourseRelationshipType.And;
-                    courseLine = courseLine.Replace(andSignifier, "");
-                }
-                else if (courseLine.Contains(orSignifier))
-                {
-                    processLineObj.RelationshipType = CourseRelationshipType.Or;
-                    courseLine = courseLine.Replace(orSignifier, "");
-                }
                 //Get the credits (2nd to last character)
-                int parseResult;
                 var credits = courseLine.Substring(courseLine.Length - 2, 1);
+                int parseResult = -1;
                 if (int.TryParse(credits, out parseResult)) processLineObj.Course.Credits = parseResult;
                 //Get the description (or at least the start of it)
                 var subStrLen = courseLine.Length - processLineObj.Course.Name.Length - 3;
@@ -275,7 +284,7 @@ namespace AssistPivot.Managers
                     processLineObj.Course.Description = "";
                 }
             }
-            else
+            else if (processLineObj.Course.Name != null)
             {
                 // If linePart starts with a " " it's a continuation of description
                 processLineObj.Course.Description += " " + courseLine.Trim();
