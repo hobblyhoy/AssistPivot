@@ -267,22 +267,22 @@ namespace AssistPivot.Managers
                 // Get the course name
                 var matchesFirstTwoWords = @"[^\s]+\s+[^\s]+";
                 var courseNameRegex = new Regex(matchesFirstTwoWords);
-                var match = courseNameRegex.Match(courseLine);
-                processLineObj.Course.Name = match.Value;
+                var nameMatch = courseNameRegex.Match(courseLine);
+                processLineObj.Course.Name = nameMatch.Value;
                 //Get the credits (2nd to last character)
-                var credits = courseLine.Substring(courseLine.Length - 2, 1);
-                int parseResult = -1;
-                if (int.TryParse(credits, out parseResult)) processLineObj.Course.Credits = parseResult;
-                //Get the description (or at least the start of it)
-                var subStrLen = courseLine.Length - processLineObj.Course.Name.Length - 3;
-                if (subStrLen > 0)
+                var matchesCredits = "[(][0-9]*?[.]*?[0-9]*?[)]";
+                var creditsRegex = new Regex(matchesCredits, RegexOptions.RightToLeft);
+                var creditsMatch = creditsRegex.Match(courseLine);
+                int endIndex = courseLine.Length;
+                if (creditsMatch.Success)
                 {
-                    processLineObj.Course.Description = courseLine.Substring(processLineObj.Course.Name.Length, subStrLen).Trim();
+                    var numStr = creditsMatch.Value.Substring(1, creditsMatch.Value.Length-2);
+                    float parseResult = -1;
+                    if (float.TryParse(numStr, out parseResult)) processLineObj.Course.Credits = parseResult;
+                    endIndex = creditsMatch.Index;
                 }
-                else
-                {
-                    processLineObj.Course.Description = "";
-                }
+                var subStrLen = endIndex - processLineObj.Course.Name.Length;
+                processLineObj.Course.Description = courseLine.Substring(processLineObj.Course.Name.Length, subStrLen).Trim();
             }
             else if (processLineObj.Course.Name != null)
             {

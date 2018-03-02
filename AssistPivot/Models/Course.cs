@@ -14,7 +14,7 @@ namespace AssistPivot.Models
         public virtual Year Year { get; set; }
         public string Name { get; set; }
         public string Description { get; set; }
-        public int? Credits { get; set; }
+        public float? Credits { get; set; }
         public DateTimeOffset? UpToDateAsOf { get; set; }
 
         public bool IsEmpty()
