@@ -262,12 +262,13 @@ namespace AssistPivot.Managers
                 {
                     processLineObj.Course.UpToDateAsOf = DateTimeOffset.Now;
                     processLineObj.Courses.Add(processLineObj.Course);
+                    processLineObj.Course = new Course();
                 }
-                processLineObj.Course = new Course();
                 // Get the course name
                 var matchesFirstTwoWords = @"[^\s]+\s+[^\s]+";
                 var courseNameRegex = new Regex(matchesFirstTwoWords);
                 var nameMatch = courseNameRegex.Match(courseLine);
+                if (nameMatch.Value == "Articulation per") return;
                 processLineObj.Course.Name = nameMatch.Value;
                 //Get the credits (2nd to last character)
                 var matchesCredits = "[(][0-9]*?[.]*?[0-9]*?[)]";
