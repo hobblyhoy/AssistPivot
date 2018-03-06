@@ -16,7 +16,7 @@ namespace AssistPivot.Managers
         public static HttpClient client = new HttpClient();
         public const string welcomePageUrl = "http://www.assist.org/web-assist/welcome.html";
         public const string courseGroupSeperator = "--------------------------------------------------------------------------------";
-        public string[] emptySignifiers = { "Not Articulated", "No Comparable Course" };
+        public string[] badRelationshipIndicators = { "not articulated", "not available for articulation", "no comparable course", "no articulation", "no course articulated", "course denied" };
         public AssistManager assistMan = null;
         private AssistManager AssistMan()
         {
@@ -26,7 +26,7 @@ namespace AssistPivot.Managers
 
         public ScraperManager()
         {
-            client.Timeout = TimeSpan.FromMinutes(15);
+            if (client.Timeout.Minutes != 15) client.Timeout = TimeSpan.FromMinutes(15);
         }
 
         public async Task<List<College>> GetCollegesFromDbOrScrape(AssistDbContext db)
@@ -107,6 +107,7 @@ namespace AssistPivot.Managers
             var toColleges = db.Colleges.Where(c => c.CollegeId != fromCollege.CollegeId).ToList();
             var allCoursesFromDb = db.Courses.Include("College").Include("Year").ToList();
             var allCourseRelationsipsFromDb = db.CourseRelationships.Include("ToCourses").Include("FromCourses").ToList();
+            var allKnownRequests = db.KnownRequests.ToList();
 
             // Clear out any existing data we're about to grab
             // Note that a particular course can apply to relationships spanning multiple fromColleges so once created we NEVER delete those
@@ -119,19 +120,33 @@ namespace AssistPivot.Managers
 
             foreach (var toCollege in toColleges)
             {
-                //var debugTestCollege = toColleges.First(c => c.Shorthand == "CPP");
+                //Get this request from the DB
                 var url = RequestUrl(fromCollege.Shorthand, toCollege.Shorthand, year.Name);
+                var requestShell = new KnownRequest() { RequestTo = RequestSource.Main, Url = url };
+                var knownRequest = allKnownRequests.FirstOrDefault(r => r.LooseEquals(requestShell));
+                if (knownRequest == null)
+                {
+                    db.KnownRequests.Add(requestShell);
+                    allKnownRequests.Add(requestShell);
+                    knownRequest = requestShell;
+                }
+                else
+                {
+                    // If we know this is a request that returns nothing we can skip it
+                    if (!knownRequest.IsValid() && knownRequest.UpToDateAsOf > DateTimeOffset.Now.AddDays(-14)) continue;
+                }
+
                 string result;
                 using (var response = await client.GetAsync(url))
                 {
                     using (var content = response.Content)
                     {
                         result = await content.ReadAsStringAsync();
+                        knownRequest.Update(result.Length);
+                        db.SaveChanges();
                         //result = DebugManager.RequestAhcToCpp1516();
                     }
                 }
-                var emptyRequestLength = 686;
-                if (result.Length <= emptyRequestLength) continue;
                 // Technically this is an html doc but the bit we care about is always going to be between the only set of PRE tags
                 // so we'll skip the html doc overhead and do it old school
                 var dirtyList = result.Between("<PRE>", "</PRE>").Trim().Split(courseGroupSeperator);
@@ -143,7 +158,7 @@ namespace AssistPivot.Managers
                 {
                     // Remove the entities that dont contain the pattern *(*)*|*(*)* 
                     // also exclude our known empty comparison cases
-                    if (twoCoursesRegex.IsMatch(potentialCourseRela) && !emptySignifiers.Any(s => potentialCourseRela.Contains(s)))
+                    if (twoCoursesRegex.IsMatch(potentialCourseRela) && !badRelationshipIndicators.Any(s => potentialCourseRela.ToLower().Contains(s)))
                     {
                         validCourseRelationships.Add(potentialCourseRela);
                     }
@@ -171,8 +186,8 @@ namespace AssistPivot.Managers
                             ProcessLine(toProcessLineObj, lineParts[0]);
                             ProcessLine(fromProcessLineObj, lineParts[1]);
                         }
-                        if (toProcessLineObj.Course != null) toProcessLineObj.Courses.Add(toProcessLineObj.Course);
-                        if (fromProcessLineObj.Course != null) fromProcessLineObj.Courses.Add(fromProcessLineObj.Course);
+                        if (toProcessLineObj.Course != null && !toProcessLineObj.Course.IsEmpty()) toProcessLineObj.Courses.Add(toProcessLineObj.Course);
+                        if (fromProcessLineObj.Course != null && !fromProcessLineObj.Course.IsEmpty()) fromProcessLineObj.Courses.Add(fromProcessLineObj.Course);
 
                         if (toProcessLineObj.Courses.Count > 0 && fromProcessLineObj.Courses.Count > 0)
                         {
@@ -241,6 +256,8 @@ namespace AssistPivot.Managers
         // a custom class to hold onto that can be easily be worked on without worrying about passing stuff back and forth.
         private void ProcessLine(ProcessLineObj processLineObj, string courseLine)
         {
+            if (processLineObj.IgnoreThisLine(courseLine)) return;
+
             // Check for & and ORs relationships. Could regex this but it's only two strings so w/e
             var andSignifier = "<B ><U >&</B></U>";
             var orSignifier = "<B ><U >OR</B></U>";
@@ -255,42 +272,64 @@ namespace AssistPivot.Managers
                 courseLine = courseLine.Replace(orSignifier, "");
             }
 
+            courseLine = processLineObj.IgnoreBufferFilter(courseLine);
+
             if (courseLine.Substring(0, 1) != " ")
             {
-                //we've reached a new (or the first) course. push the existing one onto our list and start a new
-                if (!processLineObj.Course.IsEmpty())
+                // Special case- An existing course w/ a multi-line course name
+                if (processLineObj.Course.Name != null && processLineObj.Course.Credits == null)
                 {
-                    processLineObj.Course.UpToDateAsOf = DateTimeOffset.Now;
-                    processLineObj.Courses.Add(processLineObj.Course);
-                    processLineObj.Course = new Course();
+                    int? creditsIndex = ExtractAndSetCredits(processLineObj, courseLine);
+                    int endIndex = creditsIndex ?? courseLine.Length;
+                    processLineObj.Course.Description += " " + courseLine.Substring(0, endIndex).Trim();
                 }
-                // Get the course name
-                var matchesFirstTwoWords = @"[^\s]+\s+[^\s]+";
-                var courseNameRegex = new Regex(matchesFirstTwoWords);
-                var nameMatch = courseNameRegex.Match(courseLine);
-                if (nameMatch.Value == "Articulation per") return;
-                processLineObj.Course.Name = nameMatch.Value;
-                //Get the credits (2nd to last character)
-                var matchesCredits = "[(][0-9]*?[.]*?[0-9]*?[)]";
-                var creditsRegex = new Regex(matchesCredits, RegexOptions.RightToLeft);
-                var creditsMatch = creditsRegex.Match(courseLine);
-                int endIndex = courseLine.Length;
-                if (creditsMatch.Success)
+                else // A new (or the first) course. push the existing one onto our list and start a new
                 {
-                    var numStr = creditsMatch.Value.Substring(1, creditsMatch.Value.Length-2);
-                    float parseResult = -1;
-                    if (float.TryParse(numStr, out parseResult)) processLineObj.Course.Credits = parseResult;
-                    endIndex = creditsMatch.Index;
+                    if (!processLineObj.Course.IsEmpty())
+                    {
+                        processLineObj.Course.UpToDateAsOf = DateTimeOffset.Now;
+                        processLineObj.Courses.Add(processLineObj.Course);
+                        processLineObj.Course = new Course();
+                    }
+                    // Get the course name
+                    var matchesFirstTwoWords = @"[^\s]+\s+[^\s]+";
+                    var courseNameRegex = new Regex(matchesFirstTwoWords);
+                    var nameMatch = courseNameRegex.Match(courseLine);
+                    if (nameMatch.Value == "Articulation per") return;
+                    processLineObj.Course.Name = nameMatch.Value;
+                    //Get the credits (if they exist)
+                    int? creditsIndex = ExtractAndSetCredits(processLineObj, courseLine);
+                    int endIndex = creditsIndex ?? courseLine.Length;
+                    var subStrLen = endIndex - processLineObj.Course.Name.Length;
+                    processLineObj.Course.Description = courseLine.Substring(processLineObj.Course.Name.Length, subStrLen).Trim();
                 }
-                var subStrLen = endIndex - processLineObj.Course.Name.Length;
-                processLineObj.Course.Description = courseLine.Substring(processLineObj.Course.Name.Length, subStrLen).Trim();
             }
             else if (processLineObj.Course.Name != null)
             {
-                // If linePart starts with a " " it's a continuation of description
+                // If linePart starts with a " " it's always a continuation of description
                 processLineObj.Course.Description += " " + courseLine.Trim();
                 processLineObj.Course.Description = processLineObj.Course.Description.Trim();
             }
+        }
+
+        //If credits are found, updates the processLineObj and returns the index of the credits text.
+        private int? ExtractAndSetCredits(ProcessLineObj processLineObj, string courseLine)
+        {
+            var matchesCredits = "[(][0-9]*?[.]*?[0-9]*?[)]";
+            var creditsRegex = new Regex(matchesCredits, RegexOptions.RightToLeft);
+            var creditsMatch = creditsRegex.Match(courseLine);
+            if (creditsMatch.Success)
+            {
+                var numStr = creditsMatch.Value.Substring(1, creditsMatch.Value.Length - 2);
+                float parseResult = -1;
+                if (float.TryParse(numStr, out parseResult))
+                {
+                    processLineObj.Course.Credits = parseResult;
+                    return creditsMatch.Index;
+                }
+            }
+
+            return null;
         }
 
         private class ProcessLineObj
@@ -298,12 +337,45 @@ namespace AssistPivot.Managers
             public List<Course> Courses { get; set; }
             public Course Course { get; set; }
             public CourseRelationshipType RelationshipType { get; set; }
+            private int IgnoreBuffer { get; set; }
+            private bool IgnoreRemainder { get; set; }
 
             public ProcessLineObj()
             {
                 Courses = new List<Course>();
                 Course = new Course();
                 RelationshipType = CourseRelationshipType.Unset;
+                IgnoreBuffer = 0;
+            }
+
+            public string IgnoreBufferFilter(string courseLine)
+            {
+                if (courseLine.Substring(0, 1) == "@" || courseLine.Substring(0, 1) == "#")
+                {
+                    IgnoreBuffer = 3;
+                }
+
+                if (IgnoreBuffer > 0)
+                {
+                    return courseLine.Substring(IgnoreBuffer, courseLine.Length - IgnoreBuffer);
+                }
+                return courseLine;
+            }
+
+            public bool IgnoreThisLine(string courseLine)
+            {
+                if (IgnoreRemainder) return true;
+                if (courseLine.Contains("<b>NOTE:"))
+                {
+                    IgnoreRemainder = true;
+                    return true;
+                }
+                if (courseLine.Contains("<U>Approved </U><U>Substitution</U>:"))
+                {
+                    return true;
+                }
+
+                return false;
             }
         }
     }

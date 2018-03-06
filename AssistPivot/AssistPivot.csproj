@@ -220,6 +220,7 @@
     <Compile Include="Models\CollegeYearStatus.cs" />
     <Compile Include="Models\Course.cs" />
     <Compile Include="Models\CourseRelationship.cs" />
+    <Compile Include="Models\KnownRequest.cs" />
     <Compile Include="Models\Year.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

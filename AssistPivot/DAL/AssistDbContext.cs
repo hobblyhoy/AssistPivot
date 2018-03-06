@@ -20,6 +20,7 @@ namespace AssistPivot.DAL
         public DbSet<CollegeYearStatus> CollegeYearStatuses { get; set; }
         public DbSet<Course> Courses { get; set; }
         public DbSet<CourseRelationship> CourseRelationships { get; set; }
+        public DbSet<KnownRequest> KnownRequests { get; set; }
 
     }
 }
