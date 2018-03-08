@@ -20,8 +20,11 @@ namespace AssistPivot.Models
         public int? Length { get; set; }
         public DateTimeOffset? UpToDateAsOf { get; set; }
 
-        public bool Equals(KnownRequest otherRequest)
+        public override bool Equals(object otherObject)
         {
+            var otherRequest = otherObject as KnownRequest;
+            if (otherRequest == null) return false;
+
             return LooseEquals(otherRequest)
                 && this.Length == otherRequest.Length
                 && this.UpToDateAsOf == otherRequest.UpToDateAsOf;

@@ -5,6 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Entity;
 using System.Linq;
 using System.Web;
+using AssistPivot.Managers;
 
 namespace AssistPivot.Models
 {
@@ -17,18 +18,27 @@ namespace AssistPivot.Models
         public string Shorthand { get; set; }
         public DateTimeOffset UpToDateAsOf { get; set; }
 
-        public bool NonStrictEquals(College otherCollege)
+        public void Patch(College templateCollege)
         {
-            return this.Name == otherCollege.Name || this.Shorthand == otherCollege.Shorthand;
+            this.Name = templateCollege.Name;
+            this.Shorthand = templateCollege.Shorthand;
+            this.UpToDateAsOf = templateCollege.UpToDateAsOf;
         }
 
-        public void MakeEqual(College otherCollege)
+        public override bool Equals(object otherObject)
         {
-            this.Name = otherCollege.Name;
-            this.Shorthand = otherCollege.Shorthand;
-            this.UpToDateAsOf = otherCollege.UpToDateAsOf;
+            var otherCollege = otherObject as College;
+            if (otherObject == null) return false;
+
+            return Name == otherCollege.Name
+                && Shorthand == otherCollege.Shorthand;
         }
 
+        public override int GetHashCode()
+        {
+            return Name.GetHashCode() * 71
+                + Shorthand.GetHashCode() * 73;
+        }
     }
 
 }

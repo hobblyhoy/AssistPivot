@@ -97,9 +97,9 @@ namespace AssistPivot.Managers
             return response;
         }
 
-        public List<Course> GetCourses(AssistDbContext db, College college, Year year)
+        public List<CourseSet> GetCourses(AssistDbContext db, College college, Year year)
         {
-            var ret = db.Courses
+            var ret = db.CourseSets
                     .Include("College").Include("Year")
                     .Where(course => course.College.CollegeId == college.CollegeId && course.Year.YearId == year.YearId)
                     .ToList();
@@ -113,15 +113,16 @@ namespace AssistPivot.Managers
             return GetCourseRelationships(db, courses);
         }
 
-        public List<CourseRelationship> GetCourseRelationships(AssistDbContext db, List<Course> courses)
+        public List<CourseRelationship> GetCourseRelationships(AssistDbContext db, List<CourseSet> courses)
         {
+            return new List<CourseRelationship>();
             if (courses.Count == 0) return new List<CourseRelationship>();
 
-            var coursesIds = courses.Select(c => c.CourseId);
+            var coursesIds = courses.Select(c => c.CourseSetId);
             //get the list of relationships which match any one of these courses on the "from" side
-            return db.CourseRelationships
-                    .Where(rela => rela.FromCourses.Any(course => coursesIds.Contains(course.CourseId)))
-                    .ToList();
+            //return db.CourseRelationships
+            //        .Where(rela => rela.FromCourseSet.Any(course => coursesIds.Contains(course.CourseSetId)))
+            //        .ToList();
         }
 
         public enum NotificationType { None, Notice, Error }
@@ -129,7 +130,7 @@ namespace AssistPivot.Managers
         {
             //turns out you can only send back public members of a JsonResult :[
             public List<CourseRelationship> CourseRelationships { get; set; }
-            public List<Course> Courses { get; set; }
+            public List<CourseSet> Courses { get; set; }
             public string NotificationText { get; set; }
             public NotificationType NotificationType { get; set; }
 

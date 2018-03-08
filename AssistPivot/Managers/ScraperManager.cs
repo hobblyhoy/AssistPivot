@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace AssistPivot.Managers
@@ -16,7 +15,8 @@ namespace AssistPivot.Managers
         public static HttpClient client = new HttpClient();
         public const string welcomePageUrl = "http://www.assist.org/web-assist/welcome.html";
         public const string courseGroupSeperator = "--------------------------------------------------------------------------------";
-        public string[] badRelationshipIndicators = { "not articulated", "not available for articulation", "no comparable course", "no articulation", "no course articulated", "course denied" };
+        public string[] badRelationshipIndicators = 
+            { "not articulated", "not available for articulation", "no comparable course", "no articulation", "no course articulated", "course denied" };
         public AssistManager assistMan = null;
         private AssistManager AssistMan()
         {
@@ -34,7 +34,7 @@ namespace AssistPivot.Managers
             // Pull in the existing colleges from the DB. If they're recently updated dont bother with the scrape.
             var dbColleges = db.Colleges.ToList();
             var oneWeekAgo = DateTimeOffset.Now.AddDays(-7);
-            if (dbColleges.Min(c => c.UpToDateAsOf) > oneWeekAgo)
+            if (dbColleges.Count > 0 && dbColleges.Min(c => c.UpToDateAsOf) > oneWeekAgo)
             {
                 return dbColleges;
             }
@@ -63,13 +63,13 @@ namespace AssistPivot.Managers
                         var scrapedCollege = new College { Name = collegeName, Shorthand = shorthand, UpToDateAsOf = now };
 
                         //get the "equal" DB object
-                        var matchingDbCollege = dbColleges.FirstOrDefault(dbCol => dbCol.NonStrictEquals(scrapedCollege));
+                        var matchingDbCollege = dbColleges.FirstOrDefault(dbCol => dbCol.Equals(scrapedCollege));
                         if (matchingDbCollege != null)
                         {
                             // Make our "equal enough" db context object actually equal to what we just scrapped from the site.
                             // This will usually just be updating the UpToDateAsOf property but will also handle updates to 
                             // either college name or shorthand id.
-                            matchingDbCollege.MakeEqual(scrapedCollege);
+                            matchingDbCollege.Patch(scrapedCollege);
                         }
                         else
                         {
@@ -100,283 +100,160 @@ namespace AssistPivot.Managers
                 + $"&sia={fromCollegeShorthand}&&sidebar=false&rinst=left&mver=2&kind=5&dt=2";
         }
 
+        public async Task UpdateCourseRelationships(AssistDbContext db, College userSelectedCollege, Year year)
+        {
+            // Our datasets are relatively small so load up everything we plan to touch into memory
+            var otherColleges = db.Colleges.Where(c => c.CollegeId != userSelectedCollege.CollegeId).ToList();
+            var dbCourseSets = db.CourseSets.Include("College").Include("Year").ToList();
+            var dbCourseRelationships = db.CourseRelationships.Include("ToCourseSet").Include("FromCourseSet").ToList();
+            var dbKnownRequests = db.KnownRequests.ToList();
+
+            foreach (var otherCollege in otherColleges)
+            //foreach (var toCollege in new College[] { toColleges[0] }) //DEBUG
+            {
+                await UpdateCollegeYearBundleRelationships(db, userSelectedCollege, otherCollege, year, dbCourseSets, dbCourseRelationships, dbKnownRequests);
+                await UpdateCollegeYearBundleRelationships(db, otherCollege, userSelectedCollege, year, dbCourseSets, dbCourseRelationships, dbKnownRequests);
+            }
+        }
+
         // This was written from the point of view of being provided a From college and finding argreements From this college To all others
-        // However this was just to make dev easier, it can be very simply reversed by swapping the courses in the request.
-        public async Task UpdateCourseRelationships(AssistDbContext db, College fromCollege, Year year)
+        // However this was just to make dev easier, it can be reversed to 
+        private async Task UpdateCollegeYearBundleRelationships(AssistDbContext db, College fromCollege, College toCollege, Year year 
+            , List<CourseSet> dbCourseSets, List<CourseRelationship> dbCourseRelationships, List<KnownRequest> dbKnownRequests)
         {
-            var toColleges = db.Colleges.Where(c => c.CollegeId != fromCollege.CollegeId).ToList();
-            var allCoursesFromDb = db.Courses.Include("College").Include("Year").ToList();
-            var allCourseRelationsipsFromDb = db.CourseRelationships.Include("ToCourses").Include("FromCourses").ToList();
-            var allKnownRequests = db.KnownRequests.ToList();
-
-            // Clear out any existing data we're about to grab
-            // Note that a particular course can apply to relationships spanning multiple fromColleges so once created we NEVER delete those
-            var courseRelasToDelete = AssistMan().GetCourseRelationships(db, fromCollege, year);
-            foreach (var courseRela in courseRelasToDelete)
+            //Get this request from the DB
+            var url = RequestUrl(fromCollege.Shorthand, toCollege.Shorthand, year.Name);
+            var requestShell = new KnownRequest() { RequestTo = RequestSource.Main, Url = url };
+            var knownRequest = dbKnownRequests.FirstOrDefault(r => r.LooseEquals(requestShell));
+            if (knownRequest == null)
             {
-                db.CourseRelationships.Remove(courseRela);
+                db.KnownRequests.Add(requestShell);
+                dbKnownRequests.Add(requestShell);
+                knownRequest = requestShell;
             }
+            else
+            {
+                // If we know this request returns nothing we can skip it
+                if (!knownRequest.IsValid() && knownRequest.UpToDateAsOf > DateTimeOffset.Now.AddDays(-14)) return;
+            }
+
+            string result;
+            using (var response = await client.GetAsync(url))
+            {
+                using (var content = response.Content)
+                {
+                    result = await content.ReadAsStringAsync();
+                    knownRequest.Update(result.Length);
+                    db.SaveChanges();
+                    //result = DebugManager.RequestAhcToCpp1516(); //DEBUG
+                }
+            }
+            // Technically this is an html doc but the bit we care about is always going to be between the only set of PRE tags
+            // so we'll skip the html doc overhead and do it old school
+            var dirtyList = result.Between("<PRE>", "</PRE>").Trim().Split(courseGroupSeperator);
+            var validCourseRelationships = new List<string>();
+            var multiCoursesRegex = RegexManager.MultiCourseRegex();
+            // Clean phase 1, remove single courses or non course data, add these to cleanList
+            foreach (var potentialCourseRela in dirtyList)
+            {
+                // Regex match on multiple courses and exclude our known empty comparison cases
+                if (multiCoursesRegex.IsMatch(potentialCourseRela) && !badRelationshipIndicators.Any(s => potentialCourseRela.ToLower().Contains(s)))
+                {
+                    validCourseRelationships.Add(potentialCourseRela);
+                }
+
+            }
+
+            // Clean phase 2 + parse, all within each block of course relationships
+            // parse the ones which do into to/from courses
+            var courseRelaExtractedBucket = new List<CourseRelationship>();
+            foreach (var courseRelaRaw in validCourseRelationships)
+            //var courseRelaRaw = validCourseRelationships[0]; //DEBUG
+            {
+                using (StringReader reader = new StringReader(courseRelaRaw))
+                {
+                    var toPart = "";
+                    var fromPart = "";
+
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        // if the line doesn't contain a |, skip (notes, department headers, etc. Never course data)
+                        if (line.IndexOf('|') == -1) continue;
+
+                        // strip formatting
+                        line = line.Replace("<B >", "").Replace("</B>", "");
+                        line = line.Replace("<U >", "").Replace("</U>", "");
+
+                        // break line into to/from parts (before/after the |  ...order matters!)
+                        var lineParts = line.Split("|", 2);
+
+                        toPart += lineParts[0] + System.Environment.NewLine;
+                        fromPart += lineParts[1] + System.Environment.NewLine;
+                    }
+                    toPart = toPart.Trim();
+                    fromPart = fromPart.Trim();
+                    if (toPart.Length == 0 || fromPart.Length == 0) continue;
+
+                    var toCourseSet = new CourseSet(toCollege, year, toPart);
+                    var fromCourseSet = new CourseSet(fromCollege, year, fromPart);
+
+                    //Prevent building dupe courses
+                    var toCourseSetDb = dbCourseSets.FirstOrDefault(c => c.Equals(toCourseSet));
+                    var fromCourseSetDb = dbCourseSets.FirstOrDefault(c => c.Equals(fromCourseSet));
+
+                    var now = DateTimeOffset.Now;
+                    if (toCourseSetDb != null)
+                    {
+                        toCourseSetDb.UpToDateAsOf = now;
+                        toCourseSet = toCourseSetDb;
+                    }
+                    else
+                    {
+                        dbCourseSets.Add(toCourseSet);
+                    }
+
+                    if (fromCourseSetDb != null)
+                    {
+                        fromCourseSetDb.UpToDateAsOf = now;
+                        fromCourseSet = fromCourseSetDb;
+                    }
+                    else
+                    {
+                        dbCourseSets.Add(fromCourseSet);
+                    }
+
+
+                    var courseRela = new CourseRelationship() { ToCourseSet = toCourseSet, FromCourseSet = fromCourseSet, UpToDateAsOf = DateTimeOffset.Now };
+                    courseRelaExtractedBucket.Add(courseRela);
+                }
+            }
+
+            var courseRelaDbBucket = dbCourseRelationships.Where(
+                            cr => cr.FromCourseSet.College.CollegeId == fromCollege.CollegeId
+                            && cr.ToCourseSet.College.CollegeId == toCollege.CollegeId
+                            && cr.FromCourseSet.Year.YearId == year.YearId
+                        ).ToList();
+
+
+            //Compare what we found vs what the DB holds to figure out what to add/remove
+            var relasToAdd = courseRelaExtractedBucket.Except(courseRelaDbBucket).ToList();
+            var relasToRemove = courseRelaDbBucket.Except(courseRelaExtractedBucket).ToList();
+
+            foreach (var rela in relasToAdd)
+            {
+                db.CourseRelationships.Add(rela);
+                dbCourseRelationships.Add(rela);
+            }
+            foreach (var rela in relasToRemove)
+            {
+                db.CourseRelationships.Remove(rela);
+                dbCourseRelationships.Remove(rela);
+            }
+
+            //Save after each toCollege has been processed.
             db.SaveChanges();
-
-            foreach (var toCollege in toColleges)
-            {
-                //Get this request from the DB
-                var url = RequestUrl(fromCollege.Shorthand, toCollege.Shorthand, year.Name);
-                var requestShell = new KnownRequest() { RequestTo = RequestSource.Main, Url = url };
-                var knownRequest = allKnownRequests.FirstOrDefault(r => r.LooseEquals(requestShell));
-                if (knownRequest == null)
-                {
-                    db.KnownRequests.Add(requestShell);
-                    allKnownRequests.Add(requestShell);
-                    knownRequest = requestShell;
-                }
-                else
-                {
-                    // If we know this is a request that returns nothing we can skip it
-                    if (!knownRequest.IsValid() && knownRequest.UpToDateAsOf > DateTimeOffset.Now.AddDays(-14)) continue;
-                }
-
-                string result;
-                using (var response = await client.GetAsync(url))
-                {
-                    using (var content = response.Content)
-                    {
-                        result = await content.ReadAsStringAsync();
-                        knownRequest.Update(result.Length);
-                        db.SaveChanges();
-                        //result = DebugManager.RequestAhcToCpp1516();
-                    }
-                }
-                // Technically this is an html doc but the bit we care about is always going to be between the only set of PRE tags
-                // so we'll skip the html doc overhead and do it old school
-                var dirtyList = result.Between("<PRE>", "</PRE>").Trim().Split(courseGroupSeperator);
-                var validCourseRelationships = new List<string>();
-                var matchesTwoCourses = @"[(].*?[0-9].*?[)].*?[|].*?[(].*?[0-9].*?[)]";
-                var twoCoursesRegex = new Regex(matchesTwoCourses, RegexOptions.Singleline);
-                // Clean phase 1, remove single courses or non course data, add these to cleanList
-                foreach (var potentialCourseRela in dirtyList)
-                {
-                    // Remove the entities that dont contain the pattern *(*)*|*(*)* 
-                    // also exclude our known empty comparison cases
-                    if (twoCoursesRegex.IsMatch(potentialCourseRela) && !badRelationshipIndicators.Any(s => potentialCourseRela.ToLower().Contains(s)))
-                    {
-                        validCourseRelationships.Add(potentialCourseRela);
-                    }
-
-                }
-
-                // Clean phase 2 + parse, all within each block of course relationships
-                // parse the ones which do into to/from courses
-                foreach (var courseRelaRaw in validCourseRelationships)
-                {
-                    using (StringReader reader = new StringReader(courseRelaRaw))
-                    {
-                        var toProcessLineObj = new ProcessLineObj();
-                        var fromProcessLineObj = new ProcessLineObj();
-
-                        string line;
-                        while ((line = reader.ReadLine()) != null)
-                        {
-                            // if the line doesn't contain a |, skip (notes, department headers, etc. Never course data)
-                            if (line.IndexOf('|') == -1) continue;
-                            // break line into to/from parts (before/after the |  ...order matters!)
-                            //line = line.Substring(16); //remove assist formatting while retaining indentation
-                            var lineParts = line.Split("|", 2);
-
-                            ProcessLine(toProcessLineObj, lineParts[0]);
-                            ProcessLine(fromProcessLineObj, lineParts[1]);
-                        }
-                        if (toProcessLineObj.Course != null && !toProcessLineObj.Course.IsEmpty()) toProcessLineObj.Courses.Add(toProcessLineObj.Course);
-                        if (fromProcessLineObj.Course != null && !fromProcessLineObj.Course.IsEmpty()) fromProcessLineObj.Courses.Add(fromProcessLineObj.Course);
-
-                        if (toProcessLineObj.Courses.Count > 0 && fromProcessLineObj.Courses.Count > 0)
-                        {
-                            // Now that we've confirmed we have a good one lets fill in the missing parts to our Course / CourseRela objects
-                            toProcessLineObj.RelationshipType = (toProcessLineObj.RelationshipType == CourseRelationshipType.Unset) ? CourseRelationshipType.None : toProcessLineObj.RelationshipType;
-                            fromProcessLineObj.RelationshipType = (fromProcessLineObj.RelationshipType == CourseRelationshipType.Unset) ? CourseRelationshipType.None : fromProcessLineObj.RelationshipType;
-
-                            var now = DateTimeOffset.Now;
-                            var toCourseUpdateTemplate = new Course() { College = toCollege, Year = year, UpToDateAsOf = now };
-                            var fromCourseUpdateTemplate = new Course() { College = fromCollege, Year = year, UpToDateAsOf = now };
-                            UpdateCourseListAndReRefToDbObjectsIfTheyExist(db, allCoursesFromDb, toProcessLineObj.Courses, toCourseUpdateTemplate);
-                            UpdateCourseListAndReRefToDbObjectsIfTheyExist(db, allCoursesFromDb, fromProcessLineObj.Courses, fromCourseUpdateTemplate);
-
-                            //The big daddy and gold of the app, course relationships
-                            var resultantCourseRela = new CourseRelationship()
-                            {
-                                ToCourses = toProcessLineObj.Courses,
-                                FromCourses = fromProcessLineObj.Courses,
-                                ToRelationshipType = toProcessLineObj.RelationshipType,
-                                FromRelationshipType = fromProcessLineObj.RelationshipType,
-                                UpToDateAsOf = now,
-                            };
-
-                            // Try and find a db equivalent
-                            // Since our Course objects have a custom Equals we can skirt the need for saving to db first
-                            var dbObj = allCourseRelationsipsFromDb.FirstOrDefault(dbCourseRela => dbCourseRela.Equals(resultantCourseRela));
-                            if (dbObj == null)
-                            {
-                                db.CourseRelationships.Add(resultantCourseRela);
-                                allCourseRelationsipsFromDb.Add(resultantCourseRela);
-                            }
-                            else
-                            {
-                                dbObj.UpToDateAsOf = now;
-                            }
-
-                        }
-                    }
-                }
-
-                //Save after each toCollege has been processed.
-                db.SaveChanges();
-            }
         }
 
-        private void UpdateCourseListAndReRefToDbObjectsIfTheyExist(AssistDbContext db, List<Course> allCoursesFromDb, List<Course> coursesToAdd, Course updateTemplate)
-        {
-            for (int i=0; i < coursesToAdd.Count; i++)
-            {
-                coursesToAdd[i].PatchFromTemplate(updateTemplate);
-                var dbObj = allCoursesFromDb.FirstOrDefault(dbCourse => dbCourse.Equals(coursesToAdd[i]));
-                if (dbObj == null)
-                {
-                    db.Courses.Add(coursesToAdd[i]);
-                    allCoursesFromDb.Add(coursesToAdd[i]);
-                }
-                else
-                {
-                    coursesToAdd[i] = dbObj;
-                    coursesToAdd[i].PatchFromTemplate(updateTemplate);
-                }
-            }
-        }
-
-        //This needs to be able to operate on the details of a particular course through multiple calls so we pass it
-        // a custom class to hold onto that can be easily be worked on without worrying about passing stuff back and forth.
-        private void ProcessLine(ProcessLineObj processLineObj, string courseLine)
-        {
-            if (processLineObj.IgnoreThisLine(courseLine)) return;
-
-            // Check for & and ORs relationships. Could regex this but it's only two strings so w/e
-            var andSignifier = "<B ><U >&</B></U>";
-            var orSignifier = "<B ><U >OR</B></U>";
-            if (courseLine.Contains(andSignifier))
-            {
-                processLineObj.RelationshipType = CourseRelationshipType.And;
-                courseLine = courseLine.Replace(andSignifier, "");
-            }
-            else if (courseLine.Contains(orSignifier))
-            {
-                processLineObj.RelationshipType = CourseRelationshipType.Or;
-                courseLine = courseLine.Replace(orSignifier, "");
-            }
-
-            courseLine = processLineObj.IgnoreBufferFilter(courseLine);
-
-            if (courseLine.Substring(0, 1) != " ")
-            {
-                // Special case- An existing course w/ a multi-line course name
-                if (processLineObj.Course.Name != null && processLineObj.Course.Credits == null)
-                {
-                    int? creditsIndex = ExtractAndSetCredits(processLineObj, courseLine);
-                    int endIndex = creditsIndex ?? courseLine.Length;
-                    processLineObj.Course.Description += " " + courseLine.Substring(0, endIndex).Trim();
-                }
-                else // A new (or the first) course. push the existing one onto our list and start a new
-                {
-                    if (!processLineObj.Course.IsEmpty())
-                    {
-                        processLineObj.Course.UpToDateAsOf = DateTimeOffset.Now;
-                        processLineObj.Courses.Add(processLineObj.Course);
-                        processLineObj.Course = new Course();
-                    }
-                    // Get the course name
-                    var matchesFirstTwoWords = @"[^\s]+\s+[^\s]+";
-                    var courseNameRegex = new Regex(matchesFirstTwoWords);
-                    var nameMatch = courseNameRegex.Match(courseLine);
-                    if (nameMatch.Value == "Articulation per") return;
-                    processLineObj.Course.Name = nameMatch.Value;
-                    //Get the credits (if they exist)
-                    int? creditsIndex = ExtractAndSetCredits(processLineObj, courseLine);
-                    int endIndex = creditsIndex ?? courseLine.Length;
-                    var subStrLen = endIndex - processLineObj.Course.Name.Length;
-                    processLineObj.Course.Description = courseLine.Substring(processLineObj.Course.Name.Length, subStrLen).Trim();
-                }
-            }
-            else if (processLineObj.Course.Name != null)
-            {
-                // If linePart starts with a " " it's always a continuation of description
-                processLineObj.Course.Description += " " + courseLine.Trim();
-                processLineObj.Course.Description = processLineObj.Course.Description.Trim();
-            }
-        }
-
-        //If credits are found, updates the processLineObj and returns the index of the credits text.
-        private int? ExtractAndSetCredits(ProcessLineObj processLineObj, string courseLine)
-        {
-            var matchesCredits = "[(][0-9]*?[.]*?[0-9]*?[)]";
-            var creditsRegex = new Regex(matchesCredits, RegexOptions.RightToLeft);
-            var creditsMatch = creditsRegex.Match(courseLine);
-            if (creditsMatch.Success)
-            {
-                var numStr = creditsMatch.Value.Substring(1, creditsMatch.Value.Length - 2);
-                float parseResult = -1;
-                if (float.TryParse(numStr, out parseResult))
-                {
-                    processLineObj.Course.Credits = parseResult;
-                    return creditsMatch.Index;
-                }
-            }
-
-            return null;
-        }
-
-        private class ProcessLineObj
-        {
-            public List<Course> Courses { get; set; }
-            public Course Course { get; set; }
-            public CourseRelationshipType RelationshipType { get; set; }
-            private int IgnoreBuffer { get; set; }
-            private bool IgnoreRemainder { get; set; }
-
-            public ProcessLineObj()
-            {
-                Courses = new List<Course>();
-                Course = new Course();
-                RelationshipType = CourseRelationshipType.Unset;
-                IgnoreBuffer = 0;
-            }
-
-            public string IgnoreBufferFilter(string courseLine)
-            {
-                if (courseLine.Substring(0, 1) == "@" || courseLine.Substring(0, 1) == "#")
-                {
-                    IgnoreBuffer = 3;
-                }
-
-                if (IgnoreBuffer > 0)
-                {
-                    return courseLine.Substring(IgnoreBuffer, courseLine.Length - IgnoreBuffer);
-                }
-                return courseLine;
-            }
-
-            public bool IgnoreThisLine(string courseLine)
-            {
-                if (IgnoreRemainder) return true;
-                if (courseLine.Contains("<b>NOTE:"))
-                {
-                    IgnoreRemainder = true;
-                    return true;
-                }
-                if (courseLine.Contains("<U>Approved </U><U>Substitution</U>:"))
-                {
-                    return true;
-                }
-
-                return false;
-            }
-        }
     }
 }
