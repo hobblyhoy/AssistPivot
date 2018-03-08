@@ -61,29 +61,27 @@
             <!-- /ko -->
         </div>
         <!-- /ko -->
-        <!-- ko if: courses.length -->
+        <!-- ko if: uw(courses).length -->
         <div style="margin-bottom:1em">
             Select a course:
             <select data-bind="options: courses
-                , optionsText: 'Name'
                 , value: selectedCourse
                 , optionsCaption: 'Select a course...'
-            "></select>
+            " style="min-width: 150px"></select>
         </div>
         <!-- /ko -->
         <!-- ko foreach: courseRelationshipsFromSelected -->
         <div class="col-md-6 col-xs-12 row">
             <div class="col-xs-12">
                 To: <span data-bind="text: ToCollegeName"></span>
-                @*<button data-bind="click: function() {debugger}"> click</button>*@
+                <span class="pull-right">From: <span data-bind="text: FromCollegeName"></span></span>
+                @*<button data-bind="click: function() {debugger}"> dbg</button>*@
             </div>
             <div data-bind="template: {name: 'course-template', data: function() { return {
-                 CourseWrapper: FromCourses
-                 , SeperatorText:FromRelationshipSeperatorText
+                 CourseWrapper: ToCourseSet
                  , Position: 'Left'}}}"></div>
             <div data-bind="template: {name: 'course-template', data: function() { return {
-                 CourseWrapper: ToCourses
-                 , SeperatorText:ToRelationshipSeperatorText
+                 CourseWrapper: FromCourseSet
                  , Position: 'Right'}}}"></div>
         </div>
         <!-- /ko -->

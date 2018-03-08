@@ -117,18 +117,6 @@
     });
 
 
-    self.relaSeperatorEnumToString = function(enumInt) {
-        switch (enumInt) {
-            case 0:
-            case 1:
-                return "";
-            case 2:
-                return "AND";
-            case 3:
-                return "OR";
-        }
-    };
-
     self.noticeTypeEnumToString = function (enumInt) {
         switch (enumInt) {
             case 0:
@@ -138,6 +126,19 @@
             case 2:
                 return "Error";
         }
+    }
+
+    self.tidyUpCourseName = function(courseName) {
+        var ret = courseName.replace("University of California", "UC")
+                            .replace("California State University", "CSU")
+                            .replace("California Polytechnic University", "CPU")
+                            .replace("State University", "SU")
+                            .replace(" Community College", "")
+                            .replace("College of ", "");
+        if (ret.substring(ret.length-8) === " College") {
+            ret = ret.substring(0, ret.length-8);
+        }
+        return ret;
     }
 
     //Request assist data
@@ -153,13 +154,12 @@
         .done(function (ret) {
             //A ltitle helper mapping
             _(ret.Data.CourseRelationships).forEach(function(rela) {
-                rela.FromRelationshipSeperatorText = self.relaSeperatorEnumToString(rela.FromRelationshipType);
-                rela.ToRelationshipSeperatorText = self.relaSeperatorEnumToString(rela.ToRelationshipType);
-                rela.ToCollegeName = rela.ToCourses[0].College.Name;
+                rela.FromCollegeName = self.tidyUpCourseName(rela.FromCourseSet.College.Name);
+                rela.ToCollegeName = self.tidyUpCourseName(rela.ToCourseSet.College.Name);
             });
 
             // Write the returned data to our obs
-            self.courses(ret.Data.Courses);
+            self.courses(ret.Data.Courses.sort());
             self.courseRelationships(ret.Data.CourseRelationships);
 
             // Display any notification text that came down
@@ -177,55 +177,12 @@
         if (!relas || relas.length === 0 || !selected) return [];
 
         var ret = _(relas).filter(function(rela) {
-            var fromCourseIds = _(rela.FromCourses).map(function(fromCourse) {
-                return fromCourse.CourseId;
-            });
-            return _(fromCourseIds).indexOf(selected.CourseId) > -1;
+            return rela.FromCourseSet.CommaDelimitedCourseNames.indexOf(selected) > -1
+                || rela.ToCourseSet.CommaDelimitedCourseNames.indexOf(selected) > -1;
         }).value();
-        ret.unshift(self.exampleCourseRela);
+        //ret.unshift(self.exampleCourseRela);
         return ret;
     });
-
-    self.exampleCourseRela = {
-        CourseRelationshipId: null
-        , FromCourses: [
-            {
-                College: {Name: "Demo College 1", Shorthand: "DC1"}
-                , Credits: 3
-                , Description: "Course Description 1 Goes Here"
-                , Name: "Course 100"
-            },{
-                College: {Name: "Demo College 1", Shorthand: "DC1"}
-                , Credits: 3
-                , Description: "Course Description 2 Goes Here"
-                , Name: "Course 101"
-            }
-        ]
-        , FromRelationshipType: 1
-        , FromRelationshipSeperatorText: "AND"
-        , ToCourses: [
-            {
-                College: {Name: "Demo College 2", Shorthand: "DC2"}
-                , Credits: 2
-                , Description: "Course Description 3 Goes Here"
-                , Name: "Course 200"
-            },{
-                College: {Name: "Demo College 2", Shorthand: "DC2"}
-                , Credits: 2
-                , Description: "Course Description 4 Goes Here"
-                , Name: "Course 201"
-            },{
-                College: {Name: "Demo College 2", Shorthand: "DC2"}
-                , Credits: 2
-                , Description: "Course Description 5 Goes Here"
-                , Name: "Course 202"
-            }
-        ]
-        , ToRelationshipType: 2
-        , ToRelationshipSeperatorText: "OR"
-        , ToCollegeName: "Demo College 2"
-        , UpToDateAsOf: null
-    }
 
 };
 

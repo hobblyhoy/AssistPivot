@@ -46,7 +46,7 @@ namespace AssistPivot.Managers
             {
                 case UpdateStatusTypes.Completed:
                     var courses = GetCourses(db, usersRequestedCollege, usersRequestedYear);
-                    response.Courses = courses;
+                    response.Courses = ExtractCourseNames(courses, usersRequestedCollege);
                     response.CourseRelationships = GetCourseRelationships(db, courses);
                     var notiTextCompleted = $"Finished getting course relationships. We found {response.Courses.Count} Courses totalling {response.CourseRelationships.Count} Relationships";
                     response.SetNotification(notiTextCompleted, NotificationType.Notice);
@@ -56,7 +56,7 @@ namespace AssistPivot.Managers
                         + " Data will not be available until it completes";
                     response.SetNotification(notiTextInFlight, NotificationType.Notice);
                     return response;
-                case UpdateStatusTypes.Error:
+                case UpdateStatusTypes.Error: //intentional switch fallthrough
                 case UpdateStatusTypes.None:
                     updateRequest = true; //Also enforced on frontend
                     break;
@@ -77,8 +77,11 @@ namespace AssistPivot.Managers
                 try
                 {
                     await ScraperMan().UpdateCourseRelationships(db, usersRequestedCollege, usersRequestedYear);
-                    response.CourseRelationships = GetCourseRelationships(db, usersRequestedCollege, usersRequestedYear);
                     thisRequestsStatus.UpdateStatus = UpdateStatusTypes.Completed;
+
+                    var courses = GetCourses(db, usersRequestedCollege, usersRequestedYear);
+                    response.Courses = ExtractCourseNames(courses, usersRequestedCollege);
+                    response.CourseRelationships = GetCourseRelationships(db, courses);
                 }
                 catch (Exception e)
                 {
@@ -107,30 +110,34 @@ namespace AssistPivot.Managers
             return ret;
         }
 
-        public List<CourseRelationship> GetCourseRelationships(AssistDbContext db, College college, Year year)
+        public List<CourseRelationship> GetCourseRelationships(AssistDbContext db, List<CourseSet> courseSets)
         {
-            var courses = GetCourses(db, college, year);
-            return GetCourseRelationships(db, courses);
+            if (courseSets.Count == 0) return new List<CourseRelationship>();
+
+            var coursesIds = courseSets.Select(c => c.CourseSetId).ToList();
+            var ret = db.CourseRelationships
+                .Include("FromCourseSet").Include("ToCourseSet")
+                .Where(rela => coursesIds.Contains(rela.FromCourseSet.CourseSetId) || coursesIds.Contains(rela.ToCourseSet.CourseSetId))
+                .ToList();
+            return ret;
         }
 
-        public List<CourseRelationship> GetCourseRelationships(AssistDbContext db, List<CourseSet> courses)
+        public List<string> ExtractCourseNames(List<CourseSet> courseSets, College targetCollege)
         {
-            return new List<CourseRelationship>();
-            if (courses.Count == 0) return new List<CourseRelationship>();
-
-            var coursesIds = courses.Select(c => c.CourseSetId);
-            //get the list of relationships which match any one of these courses on the "from" side
-            //return db.CourseRelationships
-            //        .Where(rela => rela.FromCourseSet.Any(course => coursesIds.Contains(course.CourseSetId)))
-            //        .ToList();
+            return courseSets
+                .Where(c => c.College.Equals(targetCollege))
+                .SelectMany(c => c.CommaDelimitedCourseNames.Split(','))
+                .Distinct()
+                .ToList();
         }
+
 
         public enum NotificationType { None, Notice, Error }
         public class AssistDto
         {
             //turns out you can only send back public members of a JsonResult :[
             public List<CourseRelationship> CourseRelationships { get; set; }
-            public List<CourseSet> Courses { get; set; }
+            public List<string> Courses { get; set; }
             public string NotificationText { get; set; }
             public NotificationType NotificationType { get; set; }
 

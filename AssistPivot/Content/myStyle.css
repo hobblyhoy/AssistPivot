@@ -40,3 +40,8 @@
     padding-top: 0.8em;
     text-align: center;
 }
+
+.course-wrapper {
+    white-space: pre-line;
+    font-family: Helvetica, sans-serif
+}
