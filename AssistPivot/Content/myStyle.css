@@ -1,47 +1,63 @@
-﻿#checkbox .recentUpdateText {
+﻿#checkbox .recent-update-text {
     display: none;
 }
 
-#checkbox:hover .recentUpdateText {
+#checkbox:hover .recent-update-text {
     display: inline;
 }
 
 
-.LeftCoursePad {
+.left-course-pad {
     padding-right: 0;
 }
 
-.RightCoursePad {
+.right-course-pad {
     padding-left: 0;
 }
 
-.LeftCourseRound {
+.left-course-round {
     border-bottom-left-radius: 6px;
     border-top-left-radius: 6px;
     border-right: 2px dashed #555555
 }
 
-.RightCourseRound {
+.right-course-round {
     border-bottom-right-radius: 6px;
     border-top-right-radius: 6px;
 }
 
-.NotificationBar {
+.notification-bar {
     background-color: #EEEEEE;
-    min-height: 3em;
+    min-height: 50px;
     border-radius: 6px;
     border-top-left-radius: 0;
     border-top-right-radius: 0;
     margin-bottom: 1em;
-    padding-left: 60px
+    padding-left: 60px;
+    padding-right: 60px;
 }
 
-.NotificationContent {
-    padding-top: 0.8em;
+.notification-content {
+    padding-top: 10px;
+    padding-bottom: 10px;
     text-align: center;
 }
 
 .course-wrapper {
     white-space: pre-line;
     font-family: Helvetica, sans-serif
+}
+
+.assist-icon {
+    width: 30px;
+    height: 30px;
+}
+
+.jumbotron-assist {
+    padding-top: 10px; 
+    padding-bottom: 10px; 
+    margin-bottom: 0; 
+    background-color:#CCCCCC; 
+    border-bottom-left-radius: 0; 
+    border-bottom-right-radius:0;
 }

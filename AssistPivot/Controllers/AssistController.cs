@@ -24,11 +24,12 @@ namespace AssistPivot.Controllers
             AssistManager.AssistDto dto = new AssistManager.AssistDto();
             try
             {
+
                 dto = await assistMan.GetAndUpdate(db, usersRequestedCollege, usersRequestedYear, updateRequest);
             }
             catch
             {
-                //todo send me some kind of notifier
+                // TODO If I keep iterating on this.. send me some kind of notification when we hit this
                 dto.SetNotification("Server Error 😭 Please try again later", AssistManager.NotificationType.Error);
             }
 

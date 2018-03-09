@@ -17,7 +17,7 @@ namespace AssistPivot.Controllers
         public JsonResult Get()
         {
             // So this is pretty cool-- db.<Table>.Include("<col>") tells it to not lazy load the object and gets it as part of the initial DB request.
-            // Since we need it to evaluate immediately (.ToList), lazy loading would mean making a request for every college and year in the list
+            // Since we need it to evaluate immediately (.ToList), lazy loading would mean making a request for every college and year in the list.
             // EF sql is now being written to Output for confirmation. .Include results in a LEFT OUTER JOIN [dbo].[<table>]
             List<CollegeYearStatus> result = db.CollegeYearStatuses.Include("College").Include("Year").ToList();
             var dto = result.Select(status => new CollegeYearStatusDto(status));

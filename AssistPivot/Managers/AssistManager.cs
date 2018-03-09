@@ -21,7 +21,6 @@ namespace AssistPivot.Managers
         public async Task<AssistDto> GetAndUpdate(AssistDbContext db, College usersRequestedCollege, Year usersRequestedYear, bool updateRequest)
         {
             var response = new AssistDto();
-            return response;
             var allStatusesFromDb = db.CollegeYearStatuses.Include("College").Include("Year").ToList();
             var thisRequestsStatus = allStatusesFromDb.FirstOrDefault(s => s.College == usersRequestedCollege && s.Year == usersRequestedYear);
             var inFlightRequestStatus = allStatusesFromDb.FirstOrDefault(s => s.UpdateStatus == UpdateStatusTypes.InFlight);
@@ -86,7 +85,7 @@ namespace AssistPivot.Managers
                 }
                 catch (Exception e)
                 {
-                    //todo a notification to myself
+                    // TODO If I keep iterating on this.. send me some kind of notification when we hit this
                     var notiText = "Failure while trying to update this college/year."
                         + " Assist's servers may be too busy to handle this request right now. Please try again later.";
                     response.SetNotification(notiText, NotificationType.Error);

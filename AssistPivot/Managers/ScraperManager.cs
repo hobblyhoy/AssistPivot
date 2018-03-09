@@ -143,9 +143,9 @@ namespace AssistPivot.Managers
                 using (var content = response.Content)
                 {
                     result = await content.ReadAsStringAsync();
+                    //result = DebugManager.RequestAhcToCpp1516(); //DEBUG
                     knownRequest.Update(result.Length);
                     db.SaveChanges();
-                    //result = DebugManager.RequestAhcToCpp1516(); //DEBUG
                 }
             }
             // Technically this is an html doc but the bit we care about is always going to be between the only set of PRE tags
@@ -170,11 +170,6 @@ namespace AssistPivot.Managers
             foreach (var courseRelaRaw in validCourseRelationships)
             //var courseRelaRaw = validCourseRelationships[0]; //DEBUG
             {
-                if (courseRelaRaw.Contains("This course must be taken at the"))
-                {
-                    var debugCheck = "asdf";
-                }
-
                 using (StringReader reader = new StringReader(courseRelaRaw))
                 {
                     var toPart = "";

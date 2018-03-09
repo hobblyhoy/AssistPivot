@@ -3,6 +3,7 @@
     window.uw = ko.unwrap;
 
     //Init
+    self.revealHelp = ko.observable(false);
     self.notificationText = ko.observable("Initial load in progress, please wait");
     self.notificationType = ko.observable("Load"); // None / Notice / Error / Load
 
@@ -16,6 +17,7 @@
     self.selectedCourse = ko.observable();
 
     self.courseRelationships = ko.observableArray();
+    self.sortRelasBy = ko.observable('To');
 
     self.statusMap = function(statusObj) {
         if (statusObj.UpToDateAsOf) {
@@ -131,17 +133,16 @@
 
 
     //handle new college/year selection
-    self.resetCourses = function() {
+    self.resetCoursesAndNotifications = function() {
         self.courses.removeAll();
         self.selectedCourse(null);
+        self.notificationType("None");
+        self.notificationText("");
     }
-    self.selectedCollege.subscribe(function() {
-        self.resetCourses();
-        //self.updateCheckboxValue(false);
-    });
-    self.selectedYear.subscribe(function() {
-        self.resetCourses();
-        //self.updateCheckboxValue(false);
+    self.resetCourseTrigger = ko.computed(function() {
+        var college = uw(self.selectedCollege);
+        var year = uw(self.selectedYear);
+        if (college && year) self.resetCoursesAndNotifications();
     });
 
 
@@ -176,6 +177,9 @@
         if (uw(self.updateCheckboxValue)) {
             self.notificationText('Okay, we\'re fetching this data from Assist now. This can take up to an hour to complete. You do not need to stay on this page. Once we have the data stored you can view it at any time.');
             self.notificationType('Load');
+        } else {
+            self.notificationText('Fetching your data.');
+            self.notificationType('Load');
         }
         var queryObj = {
             collegeId: uw(self.selectedCollege).CollegeId
@@ -185,17 +189,18 @@
         assistHelper.request('Assist', queryObj, self.processLoading)
         .done(function (ret) {
             var data = ret.Data;
-            //A ltitle helper mapping
-            _(data.CourseRelationships).forEach(function(rela) {
-                rela.FromCollegeName = self.tidyUpCourseName(rela.FromCourseSet.College.Name);
-                rela.ToCollegeName = self.tidyUpCourseName(rela.ToCourseSet.College.Name);
-            });
 
-            // Write the returned data to our obs
             if (data.Courses && data.Courses.length) {
                 self.courses(data.Courses.sort());
             }
+
             if (data.CourseRelationships && data.CourseRelationships.length) {
+                //A ltitle helper mapping
+                _(data.CourseRelationships).forEach(function(rela) {
+                    rela.FromCollegeName = self.tidyUpCourseName(rela.FromCourseSet.College.Name);
+                    rela.ToCollegeName = self.tidyUpCourseName(rela.ToCourseSet.College.Name);
+                });
+
                 self.courseRelationships(data.CourseRelationships);
             }
 
@@ -219,16 +224,21 @@
     self.courseRelationshipsFromSelected = ko.computed(function() {
         var relas = uw(self.courseRelationships);
         var selected = uw(self.selectedCourse);
+        var sortRelasBy = uw(self.sortRelasBy);
         if (!relas || relas.length === 0 || !selected) return [];
 
-        var ret = _(relas).filter(function(rela) {
-            var relevantCourseSet 
-                    = (rela.FromCourseSet.College.CollegeId === uw(self.selectedCollege).CollegeId)
-                    ? rela.FromCourseSet 
-                    : rela.ToCourseSet;
-            return relevantCourseSet.CommaDelimitedCourseNames.indexOf(selected) > -1;
-        }).value();
-        //ret.unshift(self.exampleCourseRela);
+        var ret = _(relas)
+            .filter(function(rela) {
+                var relevantCourseSet 
+                        = (rela.FromCourseSet.College.CollegeId === uw(self.selectedCollege).CollegeId)
+                        ? rela.FromCourseSet 
+                        : rela.ToCourseSet;
+                return relevantCourseSet.CommaDelimitedCourseNames.indexOf(selected) > -1;
+            })
+            .sortBy(function(rela) {
+                return rela[sortRelasBy + 'CollegeName'];
+            })
+            .value();
         return ret;
     });
 

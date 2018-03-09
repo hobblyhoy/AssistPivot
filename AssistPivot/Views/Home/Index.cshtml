@@ -1,4 +1,4 @@
-﻿<div class="jumbotron" style="padding-top: 10px; padding-bottom: 10px; margin-bottom: 0; background-color:#CCCCCC; border-bottom-left-radius: 0; border-bottom-right-radius:0">
+﻿<div class="jumbotron jumbotron-assist">
     <h1>Assist Pivot</h1>
     <p>A tool for analyzing course equivalencies from the point of view of particular college course.</p>
     @*<h2>But why tho</h2>
@@ -6,16 +6,16 @@
     <p>Requests may happen immediately or may be up to a week old because we like assist and dont want to accidentally ddos them.</p>
     <p>Truthfully I'm mostly making this because I wanted to learn how to scrape / parse html pages, how to manage atypical data relationships, and cache management from the ground up.</p>*@
 </div>
-<div class="NotificationBar">
-    <div class="NotificationContent">
+<div class="notification-bar">
+    <div class="notification-content">
         <!-- ko if: uw(notificationType) === "Load" -->
-        LOADICON
+        <img src="~/Assets/load.gif" class="assist-icon">
         <!-- /ko -->
         <!-- ko if: uw(notificationType) === "Notice" -->
-        NoticeIcon
+        <img src="~/Assets/notice.png" class="assist-icon">
         <!-- /ko -->
         <!-- ko if: uw(notificationType) === "Error" -->
-        ErrorIcon
+        <img src="~/Assets/error.png" class="assist-icon">
         <!-- /ko -->
         <span data-bind="text:notificationText"></span>
     </div>
@@ -27,7 +27,7 @@
             <select data-bind="options: colleges
                 , optionsText: 'Name'
                 , value: selectedCollege
-                @*, optionsCaption: 'Select a college...'*@
+                , optionsCaption: 'Select a college...'
             "></select>
         </div>
         <div>
@@ -41,7 +41,7 @@
         <!-- ko if: uw(selectedCollege) && uw(selectedYear) && uw(selectedCollegeYearStatus) -->
         <div>
             <span data-bind="text:uw(selectedCollege).Name"></span> for year 
-            <span data-bind="text:uw(selectedYear).Name"></span> last updated
+            <span data-bind="text:uw(selectedYear).Name"></span> was last updated
             <span data-bind="text:uw(selectedCollegeYearStatus).UpToDateAsOfPretty()" style="font-weight: bold"></span>.
             <!-- ko ifnot: uw(courses).length -->
             <div>
@@ -49,10 +49,10 @@
                 <span id="checkbox">
                     <input type="checkbox" data-bind="checked: updateCheckboxValue, disable: updateCheckboxDisabled"/>
                     <!-- ko if: uw(updateCheckboxDisabled) && !uw(updateCheckboxValue) -->
-                    <span class="recentUpdateText" data-bind="text:uw(selectedCollegeYearStatus).NoUpdateReason"></span>
+                    <span class="recent-update-text" data-bind="text:uw(selectedCollegeYearStatus).NoUpdateReason"></span>
                     <!-- /ko -->
                     <!-- ko if: updateCheckboxValue -->
-                    <strong>NOTE: Full updates can take up to an hour to complete. This college / year will not be available during the update.</strong>
+                    <span style="font-weight: bold">NOTE: Full updates can take up to an hour to complete. This college / year will not be available during the update.</span>
                     <!-- /ko -->
                 </span>
             </div>
@@ -64,12 +64,17 @@
         </div>
         <!-- /ko -->
         <!-- ko if: uw(courses).length -->
-        <div style="margin-bottom:1em">
+        <div style="margin-top: 1em">
             Select a course:
             <select data-bind="options: courses
                 , value: selectedCourse
                 , optionsCaption: 'Select a course...'
             " style="min-width: 150px"></select>
+        </div>
+        <!-- /ko -->
+        <!-- ko if: selectedCourse -->
+        <div style="margin-bottom:1em">
+            Sort By: <button data-bind="click:sortRelasBy.bind({},'To')">To</button><button data-bind="click:sortRelasBy.bind({},'From')">From</button>
         </div>
         <!-- /ko -->
         <!-- ko foreach: courseRelationshipsFromSelected -->
@@ -90,4 +95,14 @@
 
     </div>
 
+</div>
+<hr />
+<div class="row col-xs-12">
+    <a href="#" data-bind="click: revealHelp.bind({}, !uw(revealHelp))">Something missing or broken?</a>
+    <!-- ko if: revealHelp -->
+    <!-- hidden away to avoid web scrappers. The irony is not lost on me. -->
+    <!-- luckilly I dont have to put in any protection for a knockout exception since that will cause all the inline conditionals to no longer work -->
+    <br>Send an email to <a href="mailto:nrooke42@gmail.com">nrooke42@gmail.com</a>
+    <br>Please include a detailed description of the problem, any error messages, and a screenshot if possible.
+    <!-- /ko -->
 </div>

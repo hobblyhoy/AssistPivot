@@ -39,27 +39,5 @@ namespace AssistPivot.Models
             return ret;
         }
 
-        //public bool Equals(CourseRelationship otherCourseRelationship)
-        //{
-        //    //if (ToCourseSet.Count != otherCourseRelationship.ToCourseSet.Count)
-        //    //{
-        //    //    return false;
-        //    //}
-        //    //if (FromCourseSet.Count != otherCourseRelationship.FromCourseSet.Count)
-        //    //{
-        //    //    return false;
-        //    //}
-        //    //for (int i=0; i < ToCourseSet.Count; i++)
-        //    //{
-        //    //    if (!otherCourseRelationship.ToCourseSet.Exists(course => course.Equals(ToCourseSet[i]))) return false;
-        //    //}
-        //    //for (int i = 0; i < FromCourseSet.Count; i++)
-        //    //{
-        //    //    if (!otherCourseRelationship.FromCourseSet.Exists(course => course.Equals(FromCourseSet[i]))) return false;
-        //    //}
-        //    ////dont care about relationship types and updatedates
-
-        //    return true;
-        //}
     }
 }
