@@ -13,19 +13,23 @@ namespace AssistPivot.Managers
         private static string pipe = "[|]";
         private static string space = "[ ]";
         private static string numbers = "[0-9]";
+        private static string forwardSlash = @"[\/]";
+        private static string wordBreak = @"\b";
 
+        private static string ZeroOrOne(string str) { return str + "?"; }
+        private static string ZeroOrMore(string str) { return str + "*"; }
         private static string One(string str) { return str; }
-        private static string OneOrMore(string str) { return str + "+?"; }
-        private static string ZeroOrMore(string str) { return str + "*?"; }
+        private static string OneOrMore(string str) { return str + "+"; }
 
         private static string BuildCourseRegexStr()
         {
-            return OneOrMore(uppercaseLetters) + One(space) + OneOrMore(numbers) + ZeroOrMore(uppercaseLetters) + One(space);
+            return OneOrMore(uppercaseLetters) + One(space) + OneOrMore(numbers) + ZeroOrMore(uppercaseLetters) + ZeroOrOne(forwardSlash) + ZeroOrMore(uppercaseLetters) + One(wordBreak);
         }
         private static string BuildMultiCourseRegexStr()
         {
             var courseRegexStr = BuildCourseRegexStr();
-            return courseRegexStr + ZeroOrMore(anything) + One(pipe) + ZeroOrMore(anything) + courseRegexStr;
+            var ret = courseRegexStr + ZeroOrMore(anything) + One(pipe) + ZeroOrMore(anything) + courseRegexStr;
+            return ret;
         }
 
 

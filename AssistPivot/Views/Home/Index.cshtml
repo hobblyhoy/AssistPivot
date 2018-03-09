@@ -42,13 +42,14 @@
         <div>
             <span data-bind="text:uw(selectedCollege).Name"></span> for year 
             <span data-bind="text:uw(selectedYear).Name"></span> last updated
-            <strong><span data-bind="text:uw(selectedCollegeYearStatus).UpToDateAsOf"></span></strong>.
+            <span data-bind="text:uw(selectedCollegeYearStatus).UpToDateAsOfPretty()" style="font-weight: bold"></span>.
+            <!-- ko ifnot: uw(courses).length -->
             <div>
                 Full update:
                 <span id="checkbox">
                     <input type="checkbox" data-bind="checked: updateCheckboxValue, disable: updateCheckboxDisabled"/>
                     <!-- ko if: uw(updateCheckboxDisabled) && !uw(updateCheckboxValue) -->
-                    <span class="recentUpdateText">You cannot request updates at this time.</span>
+                    <span class="recentUpdateText" data-bind="text:uw(selectedCollegeYearStatus).NoUpdateReason"></span>
                     <!-- /ko -->
                     <!-- ko if: updateCheckboxValue -->
                     <strong>NOTE: Full updates can take up to an hour to complete. This college / year will not be available during the update.</strong>
@@ -59,6 +60,7 @@
                 <button data-bind="click:process, disable: processLoading">Go</button>
             </div>
             <!-- /ko -->
+        <!-- /ko --> 
         </div>
         <!-- /ko -->
         <!-- ko if: uw(courses).length -->

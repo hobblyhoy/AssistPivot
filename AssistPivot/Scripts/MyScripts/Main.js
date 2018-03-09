@@ -17,6 +17,21 @@
 
     self.courseRelationships = ko.observableArray();
 
+    self.statusMap = function(statusObj) {
+        if (statusObj.UpToDateAsOf) {
+            statusObj.UpToDateAsOf = new Date(statusObj.UpToDateAsOf);
+            statusObj.UpToDateAsOfPretty = function() { return this.UpToDateAsOf.toLocaleString() };
+        } else {
+            statusObj.UpToDateAsOfPretty = function() { return 'Never' };
+        }
+
+        statusObj.NoUpdateReason = '';
+        if (statusObj.UpdateAllowed === 'No') {
+            statusObj.NoUpdateReason = "This course has been recently updated."
+        } else if (statusObj.UpdateAllowed === 'AbsolutelyNot') {
+            statusObj.NoUpdateReason = "No colleges may be updated while an update is already in progress. Try again later."
+        }
+    }
     self.collegeYearStatuses = ko.observableArray();
     self.selectedCollegeYearStatus = ko.computed(function() {
         var statuses = uw(self.collegeYearStatuses);
@@ -24,31 +39,37 @@
         var selectedYear = uw(self.selectedYear);
         if (statuses.length === 0 || !selectedCollege || !selectedYear) return;
 
-        var ret = _(statuses).find(function(status) {
-            return status.CollegeId === selectedCollege.CollegeId
-                && status.YearId === selectedYear.YearId;
+        var ret = _(statuses).find(function(statusObj) {
+            return statusObj.CollegeId === selectedCollege.CollegeId
+                && statusObj.YearId === selectedYear.YearId;
         });
         if (!ret) {
-            return {UpToDateAsOf: "Never", UpdateAllowed: "Force"};
+            ret = {};
+            ret.UpdateAllowed 
+                    = (statuses[0].UpdateAllowed === 'AbsolutelyNot')
+                    ? 'AbsolutelyNot'
+                    : 'Force'
+            //ret = {UpToDateAsOfPretty: function() {return 'Never'}, UpdateAllowed: updateAllowed};
         }
+        self.statusMap(ret);
         return ret;
     });
     self.updateCheckboxValue = ko.observable(false);
     self.updateCheckboxDisabled = ko.computed(function() {
-        var status = uw(self.selectedCollegeYearStatus)
-        if (!status) return;
-        switch (status.UpdateAllowed) {
+        var statusObj = uw(self.selectedCollegeYearStatus)
+        if (!statusObj) return;
+        switch (statusObj.UpdateAllowed) {
             case "Force":
+                self.updateCheckboxValue(true);
+                return true;
             case "No":
+            case "AbsolutelyNot":
+                self.updateCheckboxValue(false);
                 return true;
             default:
+                self.updateCheckboxValue(false);
                 return false;
         }
-    });
-    self.selectedCollegeYearStatus.subscribe(function(status) {
-        if (!status) return;
-        if (status.UpdateAllowed === "Force") self.updateCheckboxValue(true);
-        if (status.UpdateAllowed === "No") self.updateCheckboxValue(false);
     });
 
 
@@ -78,16 +99,21 @@
     assistHelper.request('CollegeYearStatus', {}, self.collegeYearStatusesLoading)
     .done(function (ret) {
         var data = ret.Data;
-        var forceNoUpdates = _(data).some(function(status) {
-            return status.UpdateAllowed === "AbsolutelyNot";
+        var forceNoUpdates = _(data).some(function(statusObj) {
+            return statusObj.UpdateAllowed === "AbsolutelyNot";
         });
         if (forceNoUpdates) {
-            _(data).forEach(function(status) {
-                status.UpdateAllowed = "No";
+            _(data).forEach(function(statusObj) {
+                statusObj.UpdateAllowed = "AbsolutelyNot";
             });
             self.notificationType("Notice");
             self.notificationText("A college update request is in progress. You will only be able to retrieve cached data until this completes")
         }
+
+        _(data).forEach(function(statusObj) {
+            self.statusMap(statusObj);
+        });
+
         self.collegeYearStatuses(data);
     });
 
@@ -97,7 +123,7 @@
     });
 
     self.initialLoadTextUpdater = ko.computed(function() {
-        if (!uw(self.initialLoadIsLoading) && uw(self.notificationType) == "Load") {
+        if (!uw(self.initialLoadIsLoading) && self.notificationType.peek() == "Load") {
             self.notificationType(null);
             self.notificationText(null);
         }
@@ -111,9 +137,11 @@
     }
     self.selectedCollege.subscribe(function() {
         self.resetCourses();
+        //self.updateCheckboxValue(false);
     });
     self.selectedYear.subscribe(function() {
         self.resetCourses();
+        //self.updateCheckboxValue(false);
     });
 
 
@@ -145,6 +173,10 @@
     self.processLoading = ko.observable(false);
     self.process = function() {
         self.processLoading(true);
+        if (uw(self.updateCheckboxValue)) {
+            self.notificationText('Okay, we\'re fetching this data from Assist now. This can take up to an hour to complete. You do not need to stay on this page. Once we have the data stored you can view it at any time.');
+            self.notificationType('Load');
+        }
         var queryObj = {
             collegeId: uw(self.selectedCollege).CollegeId
             ,yearId: uw(self.selectedYear).YearId
@@ -152,20 +184,33 @@
         }
         assistHelper.request('Assist', queryObj, self.processLoading)
         .done(function (ret) {
+            var data = ret.Data;
             //A ltitle helper mapping
-            _(ret.Data.CourseRelationships).forEach(function(rela) {
+            _(data.CourseRelationships).forEach(function(rela) {
                 rela.FromCollegeName = self.tidyUpCourseName(rela.FromCourseSet.College.Name);
                 rela.ToCollegeName = self.tidyUpCourseName(rela.ToCourseSet.College.Name);
             });
 
             // Write the returned data to our obs
-            self.courses(ret.Data.Courses.sort());
-            self.courseRelationships(ret.Data.CourseRelationships);
+            if (data.Courses && data.Courses.length) {
+                self.courses(data.Courses.sort());
+            }
+            if (data.CourseRelationships && data.CourseRelationships.length) {
+                self.courseRelationships(data.CourseRelationships);
+            }
 
             // Display any notification text that came down
-            if (ret.Data.NotificationText && ret.Data.NotificationType) {
-                self.notificationText(ret.Data.NotificationText);
-                self.notificationType(self.noticeTypeEnumToString(ret.Data.NotificationType))
+            if (data.NotificationText && data.NotificationType) {
+                self.notificationText(data.NotificationText);
+                self.notificationType(self.noticeTypeEnumToString(data.NotificationType));
+            }
+
+            // If this is a full update we'll get back an updated collegeYearStatus
+            if (data.Status) {
+                var currentStatus = _(uw(self.collegeYearStatuses)).find(function(statusObj) {
+                    return statusObj.CollegeYearStatusId === data.Status.CollegeYearStatusId;
+                });
+                self.collegeYearStatuses.replace(currentStatus, data.Status);
             }
         });
     }
@@ -177,8 +222,11 @@
         if (!relas || relas.length === 0 || !selected) return [];
 
         var ret = _(relas).filter(function(rela) {
-            return rela.FromCourseSet.CommaDelimitedCourseNames.indexOf(selected) > -1
-                || rela.ToCourseSet.CommaDelimitedCourseNames.indexOf(selected) > -1;
+            var relevantCourseSet 
+                    = (rela.FromCourseSet.College.CollegeId === uw(self.selectedCollege).CollegeId)
+                    ? rela.FromCourseSet 
+                    : rela.ToCourseSet;
+            return relevantCourseSet.CommaDelimitedCourseNames.indexOf(selected) > -1;
         }).value();
         //ret.unshift(self.exampleCourseRela);
         return ret;

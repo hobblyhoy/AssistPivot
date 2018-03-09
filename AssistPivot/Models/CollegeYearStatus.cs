@@ -17,14 +17,14 @@ namespace AssistPivot.Models
         public int CollegeYearStatusId { get; set; }
         public virtual College College { get; set; }
         public virtual Year Year { get; set; }
-        public DateTimeOffset? UpToDateAsOf { get; set; }
-        public UpdateStatusTypes UpdateStatus { get; set; }
+        public DateTimeOffset? UpToDateAsOf { get; private set; }
+        public UpdateStatusTypes UpdateStatus { get; private set; }
 
         private void BasicConstruct(College college, Year year)
         {
             this.College = college;
             this.Year = year;
-            this.UpToDateAsOf = null; // Object isn't "up to date" yet.
+            this.UpToDateAsOf = DateTimeOffset.Now; ;
             this.UpdateStatus = UpdateStatusTypes.None;
         }
 
@@ -42,6 +42,12 @@ namespace AssistPivot.Models
         {
             BasicConstruct(college, year);
         }
+
+        public void SetStatus(UpdateStatusTypes status)
+        {
+            UpdateStatus = status;
+            UpToDateAsOf = DateTimeOffset.Now;
+        }
     }
 
     public class CollegeYearStatusDto
@@ -51,7 +57,8 @@ namespace AssistPivot.Models
         public int YearId { get; set; }
         public DateTimeOffset? UpToDateAsOf { get; set; }
         public UpdateStatusTypes UpdateStatus { get; set; }
-        public string UpdateAllowed { get; set; } 
+        public string UpdateAllowed { get; set; }
+        public string NoUpdateReason { get; set; }
 
         public CollegeYearStatusDto(CollegeYearStatus cys)
         {

@@ -43,6 +43,9 @@ namespace AssistPivot.Models
                     ret.Add(capture.Value.TrimEnd());
                 }
             }
+
+            ret = ret.Distinct().OrderBy(r => r).ToList();
+
             return String.Join(",", ret);
         }
 

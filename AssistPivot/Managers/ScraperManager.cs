@@ -16,7 +16,7 @@ namespace AssistPivot.Managers
         public const string welcomePageUrl = "http://www.assist.org/web-assist/welcome.html";
         public const string courseGroupSeperator = "--------------------------------------------------------------------------------";
         public string[] badRelationshipIndicators = 
-            { "not articulated", "not available for articulation", "no comparable course", "no articulation", "no course articulated", "course denied" };
+            { "not articulated", "not available for articulation", "no comparable course", "no articulation", "no course articulated", "no courses articulated", "course denied" };
         public AssistManager assistMan = null;
         private AssistManager AssistMan()
         {
@@ -170,6 +170,11 @@ namespace AssistPivot.Managers
             foreach (var courseRelaRaw in validCourseRelationships)
             //var courseRelaRaw = validCourseRelationships[0]; //DEBUG
             {
+                if (courseRelaRaw.Contains("This course must be taken at the"))
+                {
+                    var debugCheck = "asdf";
+                }
+
                 using (StringReader reader = new StringReader(courseRelaRaw))
                 {
                     var toPart = "";
@@ -182,8 +187,8 @@ namespace AssistPivot.Managers
                         if (line.IndexOf('|') == -1) continue;
 
                         // strip formatting
-                        line = line.Replace("<B >", "").Replace("</B>", "");
-                        line = line.Replace("<U >", "").Replace("</U>", "");
+                        line = line.Replace("<B >", "").Replace("<B>", "").Replace("</B>", "");
+                        line = line.Replace("<U >", "").Replace("<U>", "").Replace("</U>", "");
 
                         // break line into to/from parts (before/after the |  ...order matters!)
                         var lineParts = line.Split("|", 2);
@@ -197,6 +202,9 @@ namespace AssistPivot.Managers
 
                     var toCourseSet = new CourseSet(toCollege, year, toPart);
                     var fromCourseSet = new CourseSet(fromCollege, year, fromPart);
+
+                    // Courses stacked on one side and nothing on the other dont violate any of the rules thus far, weed them out here
+                    if (toCourseSet.CommaDelimitedCourseNames.Length == 0 || fromCourseSet.CommaDelimitedCourseNames.Length == 0) continue;
 
                     //Prevent building dupe courses
                     var toCourseSetDb = dbCourseSets.FirstOrDefault(c => c.Equals(toCourseSet));
@@ -228,30 +236,32 @@ namespace AssistPivot.Managers
                     courseRelaExtractedBucket.Add(courseRela);
                 }
             }
+            // Save after each toCollege has been processed. Ensures we walking into each save session on a clean slate.
+            db.SaveChanges();
 
+
+            // Whats currently in the DB for this college/college/year bucket. If no updates have happened RelaDb and RelaExtracted should be equivalent
             var courseRelaDbBucket = dbCourseRelationships.Where(
                             cr => cr.FromCourseSet.College.CollegeId == fromCollege.CollegeId
                             && cr.ToCourseSet.College.CollegeId == toCollege.CollegeId
                             && cr.FromCourseSet.Year.YearId == year.YearId
                         ).ToList();
 
-
-            //Compare what we found vs what the DB holds to figure out what to add/remove
             var relasToAdd = courseRelaExtractedBucket.Except(courseRelaDbBucket).ToList();
             var relasToRemove = courseRelaDbBucket.Except(courseRelaExtractedBucket).ToList();
 
-            foreach (var rela in relasToAdd)
-            {
-                db.CourseRelationships.Add(rela);
-                dbCourseRelationships.Add(rela);
-            }
             foreach (var rela in relasToRemove)
             {
-                db.CourseRelationships.Remove(rela);
                 dbCourseRelationships.Remove(rela);
+                db.CourseRelationships.Remove(rela);
             }
+            db.SaveChanges();
 
-            //Save after each toCollege has been processed.
+            foreach (var rela in relasToAdd)
+            {
+                dbCourseRelationships.Add(rela);
+                db.CourseRelationships.Add(rela);
+            }
             db.SaveChanges();
         }
 
