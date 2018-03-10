@@ -16,7 +16,10 @@ self.request = function(controller, queryStringObj, loadingFunc) {
         , method: "GET"
         , dataType: "json"
     }).fail(function () {
-        alert("Failed request to " + url);
+    	// Occasionally balks at the super long request w/ everything still working fine server-side.
+    	// until I can put in a websocket or websocket-esque tech for more stable connection, just let it fail silently
+        // alert("Failed request to " + url);
+        console.log("Failed request to " + url);
     }).done(function(ret) {
     	//debug
     	console.log('Data came back from ' + url);
