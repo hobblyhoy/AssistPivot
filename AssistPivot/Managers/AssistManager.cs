@@ -38,7 +38,7 @@ namespace AssistPivot.Managers
                 updateRequest = false; //Also enforced on frontend
             }
 
-            // Requests to Assist are VERY painful. They can take up to 60 seconds and we have to make over 300 requests on updates.
+            // Requests to Assist are VERY painful. They can take up to 3 minutes and we have to make over 300 requests on updates.
             // Since we like Assist and dont want to kill their servers we only let one user at a time actually make requests.
             // But we can serve cached data to anyone at any time, except for the college/year request thats in flight since the data
             // will be incomplete.
